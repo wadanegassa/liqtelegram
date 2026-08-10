@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 import type { Department } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,14 @@ async function getDepartments(): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = createBrowserSupabase();
+    const supabase = tryCreateBrowserSupabase();
+    if (!supabase) {
+      return {
+        departments: [],
+        error:
+          "Missing Supabase env vars on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy.",
+      };
+    }
     const { data, error } = await supabase
       .from("departments")
       .select("*")

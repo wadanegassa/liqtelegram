@@ -1,22 +1,33 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 import type { Chapter, Course, Exam } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 type Props = { params: { slug: string } };
 
-async function getCourseBundle(slug: string) {
-  const supabase = createBrowserSupabase();
-  const { data: course } = await supabase
+async function getCourseBundle(slug: string): Promise<
+  | { ok: true; course: Course; chapters: Chapter[]; exams: Exam[] }
+  | { ok: false; error: string }
+> {
+  const supabase = tryCreateBrowserSupabase();
+  if (!supabase) {
+    return {
+      ok: false,
+      error:
+        "Missing Supabase env vars on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy.",
+    };
+  }
+
+  const { data: course, error } = await supabase
     .from("courses")
     .select("*")
     .eq("slug", slug)
     .maybeSingle();
 
-  if (!course) return null;
+  if (error) return { ok: false, error: error.message };
+  if (!course) return { ok: false, error: "not_found" };
 
   const [{ data: chapters }, { data: exams }] = await Promise.all([
     supabase
@@ -34,6 +45,7 @@ async function getCourseBundle(slug: string) {
   ]);
 
   return {
+    ok: true,
     course: course as Course,
     chapters: (chapters || []) as Chapter[],
     exams: (exams || []) as Exam[],
@@ -42,7 +54,25 @@ async function getCourseBundle(slug: string) {
 
 export default async function CoursePage({ params }: Props) {
   const bundle = await getCourseBundle(params.slug);
-  if (!bundle) notFound();
+
+  if (!bundle.ok) {
+    return (
+      <AppShell
+        title={bundle.error === "not_found" ? "Course not found" : "Course error"}
+        subtitle={
+          bundle.error === "not_found"
+            ? "This link does not match any course yet."
+            : bundle.error
+        }
+        backHref="/courses"
+      >
+        <Link href="/courses" className="btn-liq inline-block">
+          Browse courses
+        </Link>
+      </AppShell>
+    );
+  }
+
   const { course, chapters, exams } = bundle;
 
   return (

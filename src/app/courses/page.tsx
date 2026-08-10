@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
-import { createBrowserSupabase } from "@/lib/supabase/client";
+import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 import type { Course } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 async function getCourses(): Promise<{ courses: Course[]; error?: string }> {
   try {
-    const supabase = createBrowserSupabase();
+    const supabase = tryCreateBrowserSupabase();
+    if (!supabase) {
+      return {
+        courses: [],
+        error:
+          "Missing Supabase env vars on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy.",
+      };
+    }
     const { data, error } = await supabase
       .from("courses")
       .select("*")
