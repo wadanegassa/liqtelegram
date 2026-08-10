@@ -7,7 +7,7 @@ import { ContentProtection } from "@/components/ContentProtection";
 
 type State =
   | { kind: "loading" }
-  | { kind: "allowed" }
+  | { kind: "allowed"; watermark: string }
   | { kind: "denied"; message: string };
 
 /**
@@ -41,7 +41,13 @@ export function MemberGate({ children }: { children: ReactNode }) {
         const json = await res.json();
         if (cancelled) return;
         if (json.allowed) {
-          setState({ kind: "allowed" });
+          const u = window.Telegram?.WebApp?.initDataUnsafe?.user;
+          const watermark = u
+            ? u.username
+              ? `@${u.username} · ${u.id}`
+              : `ID ${u.id}`
+            : `UID ${json.userId || ""}`;
+          setState({ kind: "allowed", watermark });
         } else {
           setState({
             kind: "denied",
@@ -71,7 +77,10 @@ export function MemberGate({ children }: { children: ReactNode }) {
       <>
         <LockNavigation />
         <ContentProtection />
-        <ReaderShell title="Checking access…" subtitle="Verifying paid group membership">
+        <ReaderShell
+          title="Checking access…"
+          subtitle="Verifying paid group membership"
+        >
           <p className="text-sm text-[var(--tg-hint)]">Please wait.</p>
         </ReaderShell>
       </>
@@ -87,8 +96,8 @@ export function MemberGate({ children }: { children: ReactNode }) {
           <div className="card-liq text-sm leading-relaxed">
             <p>{state.message}</p>
             <p className="mt-3 text-[var(--tg-hint)]">
-              Message the bot to pay and join, then open the pinned link again from
-              the paid group.
+              Message the bot to pay and join, then open the pinned link again
+              from the paid group.
             </p>
           </div>
         </ReaderShell>
@@ -99,7 +108,7 @@ export function MemberGate({ children }: { children: ReactNode }) {
   return (
     <>
       <LockNavigation />
-      <ContentProtection />
+      <ContentProtection watermark={state.watermark} />
       {children}
     </>
   );
