@@ -20,12 +20,10 @@ export async function POST(request: NextRequest) {
       request.headers.get("x-telegram-bot-api-secret-token") || ""
     ).trim();
 
-    // Only enforce when a secret is configured. If Telegram sends one and we
-    // have one, they must match.
+    // Reject only when Telegram sends a secret that does not match.
+    // If Vercel has a secret but Telegram sends none (or vice versa during
+    // setup), still process so /start is not silently dead.
     if (expected && provided && provided !== expected) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (expected && !provided) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
