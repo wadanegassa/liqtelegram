@@ -12,7 +12,7 @@ export function getBotConfig() {
   const token = required("TELEGRAM_BOT_TOKEN");
   const adminGroupId = optional("TELEGRAM_ADMIN_GROUP_ID");
   const paidGroupId = optional("TELEGRAM_PAID_GROUP_ID");
-  const webhookSecret = optional("TELEGRAM_WEBHOOK_SECRET", "liq-webhook-secret");
+  const webhookSecret = optional("TELEGRAM_WEBHOOK_SECRET", "");
   const appUrl = optional(
     "NEXT_PUBLIC_APP_URL",
     optional("VERCEL_URL") ? `https://${process.env.VERCEL_URL}` : ""
