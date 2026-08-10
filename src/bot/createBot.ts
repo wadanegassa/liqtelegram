@@ -6,7 +6,7 @@ import { getBotSettings } from "@/lib/bot-settings-server";
 import { renderBotText } from "@/lib/bot-settings";
 
 type BotContext = Context<Update>;
-type Extra = Record<string, unknown>;
+type Extra = object;
 
 function displayName(ctx: BotContext) {
   const u = ctx.from;
