@@ -3,22 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --liq-accent: #1f6f4a;
-  --liq-accent-soft: #d9ebe1;
-  --tg-bg: #f4f7f2;
-  --tg-text: #14231a;
-  --tg-hint: #5c6b61;
-  --tg-button: #1f6f4a;
+  --liq-accent: #000000;
+  --liq-accent-soft: #f5f5f5;
+  --tg-bg: #ffffff;
+  --tg-text: #000000;
+  --tg-hint: #525252;
+  --tg-button: #000000;
   --tg-button-text: #ffffff;
-  --tg-secondary: #e4eee7;
+  --tg-secondary: #f5f5f5;
 }
 
 body {
-  color: var(--tg-text);
-  background:
-    radial-gradient(1200px 500px at 10% -10%, #dcecdff0, transparent 55%),
-    radial-gradient(900px 400px at 100% 0%, #f0e6d8aa, transparent 50%),
-    var(--tg-bg);
+  color: #000000;
+  background: #ffffff;
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
@@ -27,71 +24,135 @@ body {
 }
 
 .prose-liq {
-  font-size: 1.02rem;
-  line-height: 1.7;
+  color: #000000;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .prose-liq h1,
 .prose-liq h2,
-.prose-liq h3 {
+.prose-liq h3,
+.prose-liq h4 {
   font-family: var(--font-display), Georgia, serif;
-  font-weight: 600;
-  margin-top: 1.4em;
-  margin-bottom: 0.45em;
-  line-height: 1.25;
+  font-weight: 650;
+  color: #000000;
+  margin-top: 1.35em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
 }
 
-.prose-liq p,
-.prose-liq ul,
-.prose-liq ol {
-  margin: 0.75em 0;
+.prose-liq h1 {
+  font-size: clamp(1.45rem, 4.5vw, 1.85rem);
+}
+.prose-liq h2 {
+  font-size: clamp(1.25rem, 3.8vw, 1.5rem);
+}
+.prose-liq h3 {
+  font-size: clamp(1.1rem, 3.2vw, 1.25rem);
+}
+
+.prose-liq p {
+  margin: 0.85em 0;
+  white-space: pre-wrap;
 }
 
 .prose-liq ul,
 .prose-liq ol {
-  padding-left: 1.25rem;
+  margin: 0.85em 0;
+  padding-left: 1.35rem;
+}
+
+.prose-liq li {
+  margin: 0.35em 0;
+}
+
+.prose-liq li > p {
+  margin: 0.25em 0;
+}
+
+.prose-liq hr {
+  border: 0;
+  border-top: 1px solid #000000;
+  margin: 1.5em 0;
+}
+
+.prose-liq a {
+  color: #000000;
+  text-decoration: underline;
+  pointer-events: none; /* locked reader — no leaving via md links */
 }
 
 .prose-liq code {
-  background: color-mix(in srgb, var(--tg-text) 8%, transparent);
-  border-radius: 0.35rem;
+  background: #f0f0f0;
+  border: 1px solid #d4d4d4;
+  border-radius: 0.25rem;
   padding: 0.1rem 0.35rem;
   font-size: 0.92em;
+  color: #000000;
 }
 
 .prose-liq pre {
   overflow-x: auto;
-  border-radius: 0.75rem;
-  background: #122018;
-  color: #e8f2ec;
+  border: 1px solid #000000;
+  border-radius: 0.5rem;
+  background: #000000;
+  color: #ffffff;
   padding: 0.9rem 1rem;
+  margin: 1em 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .prose-liq pre code {
   background: transparent;
+  border: 0;
   padding: 0;
   color: inherit;
 }
 
 .prose-liq blockquote {
-  border-left: 3px solid var(--liq-accent);
+  border-left: 3px solid #000000;
   margin: 1em 0;
   padding-left: 0.9rem;
-  color: var(--tg-hint);
+  color: #404040;
+}
+
+.prose-liq table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 1em 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.prose-liq th,
+.prose-liq td {
+  border: 1px solid #000000;
+  padding: 0.45rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose-liq img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #000000;
 }
 
 .input-liq {
-  @apply w-full rounded-xl border border-black/10 bg-white/80 px-3 py-2 text-sm outline-none focus:border-[var(--liq-accent)];
+  @apply w-full rounded-none border border-black bg-white px-3 py-2 text-sm text-black outline-none focus:ring-1 focus:ring-black;
 }
 
 .btn-liq {
-  @apply rounded-xl bg-[var(--tg-button)] px-4 py-2 text-sm font-semibold text-[var(--tg-button-text)] disabled:opacity-50;
+  @apply rounded-none bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-50;
 }
 
 .btn-ghost {
-  @apply rounded-xl border border-black/10 bg-white/50 px-3 py-2 text-sm;
+  @apply rounded-none border border-black bg-white px-3 py-2 text-sm text-black;
 }
 
 .card-liq {
-  @apply rounded-2xl border border-black/10 bg-white/70 p-4 shadow-sm backdrop-blur;
+  @apply rounded-none border border-black bg-white p-4;
 }

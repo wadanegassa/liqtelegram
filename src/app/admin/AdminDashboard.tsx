@@ -204,10 +204,10 @@ export function AdminDashboard() {
           <button
             key={id}
             type="button"
-            className={`rounded-full px-3 py-1.5 text-sm ${
+            className={`border border-black px-3 py-1.5 text-sm ${
               tab === id
-                ? "bg-[var(--tg-button)] text-[var(--tg-button-text)]"
-                : "bg-white/70 text-[var(--tg-text)]"
+                ? "bg-black text-white"
+                : "bg-white text-black"
             }`}
             onClick={() => setTab(id)}
           >
@@ -1018,7 +1018,7 @@ function BotSettingsAdmin({
     { key: "proof_received_text", label: "Proof received text", rows: 3 },
     {
       key: "approved_text",
-      label: "Approved message (use {{invite_link}} and {{mini_app_url}})",
+      label: "Approved message (use {{invite_link}})",
       rows: 8,
     },
     { key: "rejected_text", label: "Rejected message", rows: 4 },
@@ -1039,8 +1039,8 @@ function BotSettingsAdmin({
         <h3 className="font-display text-lg font-semibold">Bot texts & payment details</h3>
         <p className="mt-1 text-sm text-[var(--tg-hint)]">
           Edit what students see in Telegram. Supports Markdown (*bold*). Placeholders:{" "}
-          <code>{"{{first_name}}"}</code>, <code>{"{{invite_link}}"}</code>,{" "}
-          <code>{"{{mini_app_url}}"}</code>.
+          <code>{"{{first_name}}"}</code>, <code>{"{{invite_link}}"}</code>.
+          Do not share Mini App home links — students use course/chapter/exam links from the paid group.
         </p>
         {hint ? (
           <p className="mt-2 text-sm text-amber-800">{hint}</p>

@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { AppShell } from "@/components/AppShell";
+import { ReaderShell } from "@/components/AppShell";
+import { LockNavigation } from "@/components/LockNavigation";
 import { Markdown } from "@/components/Markdown";
 import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 
@@ -11,15 +11,12 @@ export default async function ChapterPage({ params }: Props) {
   const supabase = tryCreateBrowserSupabase();
   if (!supabase) {
     return (
-      <AppShell
-        title="Chapter error"
-        subtitle="Missing Supabase env vars on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy."
-        backHref="/courses"
-      >
-        <Link href="/courses" className="btn-liq inline-block">
-          Browse courses
-        </Link>
-      </AppShell>
+      <>
+        <LockNavigation />
+        <ReaderShell title="Unavailable" subtitle="Content is temporarily unavailable.">
+          <p className="text-sm text-neutral-600">Try again later.</p>
+        </ReaderShell>
+      </>
     );
   }
 
@@ -30,11 +27,14 @@ export default async function ChapterPage({ params }: Props) {
     .maybeSingle();
   if (!course) {
     return (
-      <AppShell title="Course not found" backHref="/courses">
-        <Link href="/courses" className="btn-liq inline-block">
-          Browse courses
-        </Link>
-      </AppShell>
+      <>
+        <LockNavigation />
+        <ReaderShell title="Course not found">
+          <p className="text-sm text-neutral-600">
+            Ask your admin for an updated link.
+          </p>
+        </ReaderShell>
+      </>
     );
   }
 
@@ -46,29 +46,25 @@ export default async function ChapterPage({ params }: Props) {
     .maybeSingle();
   if (!chapter) {
     return (
-      <AppShell
-        title="Chapter not found"
-        backHref={`/courses/${course.slug}`}
-      >
-        <Link
-          href={`/courses/${course.slug}`}
-          className="btn-liq inline-block"
-        >
-          Back to course
-        </Link>
-      </AppShell>
+      <>
+        <LockNavigation />
+        <ReaderShell title="Chapter not found">
+          <p className="text-sm text-neutral-600">
+            Ask your admin for an updated link.
+          </p>
+        </ReaderShell>
+      </>
     );
   }
 
   return (
-    <AppShell
-      title={chapter.title}
-      subtitle={`${course.title} · Chapter`}
-      backHref={`/courses/${course.slug}`}
-    >
-      <article className="card-liq">
-        <Markdown content={chapter.content_md} />
-      </article>
-    </AppShell>
+    <>
+      <LockNavigation />
+      <ReaderShell title={chapter.title} subtitle={course.title}>
+        <article className="card-liq">
+          <Markdown content={chapter.content_md} />
+        </article>
+      </ReaderShell>
+    </>
   );
 }

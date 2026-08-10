@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { AppShell } from "@/components/AppShell";
+import { ReaderShell } from "@/components/AppShell";
+import { LockNavigation } from "@/components/LockNavigation";
 import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 import type { Chapter, Course, Exam } from "@/lib/types";
 
@@ -13,11 +13,7 @@ async function getCourseBundle(slug: string): Promise<
 > {
   const supabase = tryCreateBrowserSupabase();
   if (!supabase) {
-    return {
-      ok: false,
-      error:
-        "Missing Supabase env vars on Vercel. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, then redeploy.",
-    };
+    return { ok: false, error: "Content is temporarily unavailable." };
   }
 
   const { data: course, error } = await supabase
@@ -32,13 +28,13 @@ async function getCourseBundle(slug: string): Promise<
   const [{ data: chapters }, { data: exams }] = await Promise.all([
     supabase
       .from("chapters")
-      .select("*")
+      .select("id, title, slug, sort_order")
       .eq("course_id", course.id)
       .order("sort_order", { ascending: true })
       .order("title", { ascending: true }),
     supabase
       .from("exams")
-      .select("*")
+      .select("id, title, slug, year, sort_order")
       .eq("course_id", course.id)
       .order("sort_order", { ascending: true })
       .order("title", { ascending: true }),
@@ -57,75 +53,79 @@ export default async function CoursePage({ params }: Props) {
 
   if (!bundle.ok) {
     return (
-      <AppShell
-        title={bundle.error === "not_found" ? "Course not found" : "Course error"}
-        subtitle={
-          bundle.error === "not_found"
-            ? "This link does not match any course yet."
-            : bundle.error
-        }
-        backHref="/courses"
-      >
-        <Link href="/courses" className="btn-liq inline-block">
-          Browse courses
-        </Link>
-      </AppShell>
+      <>
+        <LockNavigation />
+        <ReaderShell
+          title={bundle.error === "not_found" ? "Course not found" : "Error"}
+          subtitle={
+            bundle.error === "not_found"
+              ? "This link does not match any course."
+              : bundle.error
+          }
+        >
+          <p className="text-sm text-neutral-600">
+            Ask your admin for an updated link from the paid group.
+          </p>
+        </ReaderShell>
+      </>
     );
   }
 
   const { course, chapters, exams } = bundle;
 
   return (
-    <AppShell
-      title={course.title}
-      subtitle={course.description || "Chapters and past exams for this course."}
-      backHref="/courses"
-    >
-      <section className="mb-8">
-        <h2 className="font-display mb-3 text-lg font-semibold">Chapters</h2>
-        {chapters.length === 0 ? (
-          <p className="text-sm text-[var(--tg-hint)]">No chapters yet.</p>
-        ) : (
-          <div className="grid gap-2">
-            {chapters.map((chapter, i) => (
-              <Link
-                key={chapter.id}
-                href={`/courses/${course.slug}/chapters/${chapter.slug}`}
-                className="card-liq flex items-start gap-3"
-              >
-                <span className="mt-0.5 text-xs font-semibold text-[var(--liq-accent)]">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span className="font-medium">{chapter.title}</span>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+    <>
+      <LockNavigation />
+      <ReaderShell
+        title={course.title}
+        subtitle={course.description || undefined}
+      >
+        <section className="card-liq mb-5">
+          <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
+            Chapters
+          </h2>
+          {chapters.length === 0 ? (
+            <p className="text-sm text-neutral-600">No chapters listed.</p>
+          ) : (
+            <ol className="space-y-2 text-[15px] leading-relaxed">
+              {chapters.map((chapter, i) => (
+                <li key={chapter.id} className="border-b border-neutral-200 pb-2">
+                  <span className="mr-2 text-neutral-500">
+                    {String(i + 1).padStart(2, "0")}.
+                  </span>
+                  {chapter.title}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="mt-4 text-xs text-neutral-500">
+            Open each chapter from its pinned link in the paid group.
+          </p>
+        </section>
 
-      <section>
-        <h2 className="font-display mb-3 text-lg font-semibold">Past exams</h2>
-        {exams.length === 0 ? (
-          <p className="text-sm text-[var(--tg-hint)]">No exams yet.</p>
-        ) : (
-          <div className="grid gap-2">
-            {exams.map((exam) => (
-              <Link
-                key={exam.id}
-                href={`/courses/${course.slug}/exams/${exam.slug}`}
-                className="card-liq block"
-              >
-                <div className="font-medium">{exam.title}</div>
-                {exam.year ? (
-                  <div className="mt-1 text-xs text-[var(--tg-hint)]">
-                    {exam.year}
-                  </div>
-                ) : null}
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
-    </AppShell>
+        <section className="card-liq">
+          <h2 className="mb-3 text-sm font-semibold tracking-wide uppercase">
+            Past exams
+          </h2>
+          {exams.length === 0 ? (
+            <p className="text-sm text-neutral-600">No exams listed.</p>
+          ) : (
+            <ul className="space-y-2 text-[15px] leading-relaxed">
+              {exams.map((exam) => (
+                <li key={exam.id} className="border-b border-neutral-200 pb-2">
+                  {exam.title}
+                  {exam.year ? (
+                    <span className="text-neutral-500"> · {exam.year}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-4 text-xs text-neutral-500">
+            Open each exam from its pinned link in the paid group.
+          </p>
+        </section>
+      </ReaderShell>
+    </>
   );
 }

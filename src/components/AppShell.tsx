@@ -1,6 +1,37 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+/** Locked reader chrome — no back / browse links (student deep links). */
+export function ReaderShell({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-12 pt-6">
+      <header className="mb-6 border-b border-black pb-4">
+        <p className="text-xs font-semibold tracking-[0.18em] uppercase text-black">
+          Liq Academy
+        </p>
+        <h1 className="mt-3 text-2xl leading-tight font-semibold tracking-tight text-black sm:text-3xl">
+          {title}
+        </h1>
+        {subtitle ? (
+          <p className="mt-2 text-[15px] leading-relaxed text-neutral-600">
+            {subtitle}
+          </p>
+        ) : null}
+      </header>
+      {children}
+    </div>
+  );
+}
+
+/** Admin chrome — navigation allowed. */
 export function AppShell({
   title,
   subtitle,
@@ -14,23 +45,23 @@ export function AppShell({
 }) {
   return (
     <div className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-10 pt-5">
-      <header className="mb-6">
-        <p className="font-display text-sm font-semibold tracking-[0.14em] text-[var(--liq-accent)] uppercase">
+      <header className="mb-6 border-b border-black pb-4">
+        <p className="text-xs font-semibold tracking-[0.18em] uppercase text-black">
           Liq Academy
         </p>
         {backHref ? (
           <Link
             href={backHref}
-            className="mt-2 inline-block text-sm text-[var(--tg-hint)] underline-offset-2 hover:underline"
+            className="mt-2 inline-block text-sm text-neutral-600 underline-offset-2 hover:underline"
           >
             ← Back
           </Link>
         ) : null}
-        <h1 className="font-display mt-2 text-3xl leading-tight font-semibold tracking-tight">
+        <h1 className="mt-3 text-2xl leading-tight font-semibold tracking-tight text-black sm:text-3xl">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-[var(--tg-hint)]">
+          <p className="mt-2 max-w-2xl text-[15px] leading-relaxed text-neutral-600">
             {subtitle}
           </p>
         ) : null}
@@ -40,32 +71,21 @@ export function AppShell({
   );
 }
 
-export function NavCards() {
-  const items = [
-    {
-      href: "/courses",
-      title: "Courses",
-      desc: "Chapters and explanations by subject",
-    },
-    {
-      href: "/departments",
-      title: "Departments",
-      desc: "Pick a major with clear guidance",
-    },
-  ];
-
+export function AccessGate() {
   return (
-    <div className="grid gap-3">
-      {items.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          className="rounded-2xl border border-[color:color-mix(in_srgb,var(--tg-text)_12%,transparent)] bg-[var(--tg-secondary)] px-4 py-4 transition hover:brightness-[0.98]"
-        >
-          <div className="font-display text-xl font-semibold">{item.title}</div>
-          <p className="mt-1 text-sm text-[var(--tg-hint)]">{item.desc}</p>
-        </Link>
-      ))}
-    </div>
+    <ReaderShell
+      title="Members only"
+      subtitle="Open a course, chapter, or exam link from the paid Telegram group."
+    >
+      <div className="border border-black bg-white p-5 text-sm leading-relaxed text-black">
+        <p>
+          This Mini App does not have a public menu. Your admin pins the correct
+          link in each group topic.
+        </p>
+        <p className="mt-3 text-neutral-600">
+          If you are not in the paid group yet, message the bot to pay and join.
+        </p>
+      </div>
+    </ReaderShell>
   );
 }

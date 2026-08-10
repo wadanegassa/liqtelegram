@@ -33,9 +33,8 @@ An admin will approve it, then you get a one-time invite link.`,
 1. Pay using the details from How to pay
 2. Send a clear *screenshot* in this private chat
 3. Admins review it in the proof group
-4. If approved, you get a *one-time* invite link
-
-Mini App: {{mini_app_url}}`,
+4. If approved, you get a *one-time* invite link to the paid group
+5. Open course / chapter / exam links pinned inside the paid group`,
   ask_screenshot_text:
     "Great — send your payment screenshot as a photo in this chat now.",
   proof_received_text:
@@ -45,11 +44,11 @@ Mini App: {{mini_app_url}}`,
 Here is your *one-time* invite link (expires in 24h):
 {{invite_link}}
 
-Mini App: {{mini_app_url}}`,
+Inside the paid group, open the pinned course / chapter / exam links to study.`,
   rejected_text:
     "❌ Your payment proof was rejected. Please send a clearer screenshot of a successful payment.",
   status_member_text:
-    "✅ You are an approved member. If you lost the invite, ask an admin to send a new one.",
+    "✅ You are an approved member. Use the pinned links inside the paid group to open lessons.",
   status_pending_text: "⏳ Your proof is waiting for admin review.",
   status_none_text: "No payment proof yet. Pay, then send a screenshot here.",
 };

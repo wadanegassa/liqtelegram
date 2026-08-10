@@ -18,8 +18,7 @@ function displayName(ctx: BotContext) {
 function mainMenu() {
   return Markup.keyboard([
     ["How to pay", "I already paid"],
-    ["My status", "Open Mini App"],
-    ["Help"],
+    ["My status", "Help"],
   ])
     .resize()
     .persistent();
@@ -217,10 +216,6 @@ export function createBot() {
 
   bot.hears(/my status/i, async (ctx) => {
     await replyStatus(ctx, config);
-  });
-
-  bot.hears(/open mini app/i, async (ctx) => {
-    await ctx.reply(`Open the Mini App:\n${config.miniAppUrl}`, mainMenu());
   });
 
   bot.hears(/^(ℹ️\s*)?help$/i, async (ctx) => {

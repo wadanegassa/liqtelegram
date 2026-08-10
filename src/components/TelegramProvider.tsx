@@ -26,18 +26,18 @@ type TelegramContextValue = {
   userName: string | null;
 };
 
-const defaultTheme: TelegramTheme = {
-  bg: "#f4f7f2",
-  text: "#14231a",
-  hint: "#5c6b61",
-  button: "#1f6f4a",
+const bwTheme: TelegramTheme = {
+  bg: "#ffffff",
+  text: "#000000",
+  hint: "#525252",
+  button: "#000000",
   buttonText: "#ffffff",
-  secondary: "#e4eee7",
+  secondary: "#f5f5f5",
 };
 
 const TelegramContext = createContext<TelegramContextValue>({
   ready: false,
-  theme: defaultTheme,
+  theme: bwTheme,
   startParam: null,
   userName: null,
 });
@@ -50,6 +50,7 @@ declare global {
         expand: () => void;
         setHeaderColor?: (color: string) => void;
         setBackgroundColor?: (color: string) => void;
+        BackButton?: { hide: () => void; show: () => void };
         initDataUnsafe?: {
           start_param?: string;
           user?: { first_name?: string; username?: string };
@@ -65,25 +66,20 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [startParam, setStartParam] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const [theme, setTheme] = useState<TelegramTheme>(defaultTheme);
+  const theme = bwTheme;
 
   useEffect(() => {
     const wa = window.Telegram?.WebApp;
     if (wa) {
       wa.ready();
       wa.expand();
-      const tp = wa.themeParams || {};
-      setTheme({
-        bg: tp.bg_color || defaultTheme.bg,
-        text: tp.text_color || defaultTheme.text,
-        hint: tp.hint_color || defaultTheme.hint,
-        button: tp.button_color || defaultTheme.button,
-        buttonText: tp.button_text_color || defaultTheme.buttonText,
-        secondary: tp.secondary_bg_color || defaultTheme.secondary,
-      });
-      if (wa.setHeaderColor && tp.bg_color) wa.setHeaderColor(tp.bg_color);
-      if (wa.setBackgroundColor && tp.bg_color)
-        wa.setBackgroundColor(tp.bg_color);
+      try {
+        wa.BackButton?.hide?.();
+        wa.setHeaderColor?.("#ffffff");
+        wa.setBackgroundColor?.("#ffffff");
+      } catch {
+        /* ignore */
+      }
       setStartParam(wa.initDataUnsafe?.start_param || null);
       const user = wa.initDataUnsafe?.user;
       setUserName(user?.first_name || user?.username || null);
@@ -112,7 +108,7 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
             "--tg-secondary": theme.secondary,
           } as CSSProperties
         }
-        className="min-h-screen bg-[var(--tg-bg)] text-[var(--tg-text)]"
+        className="min-h-screen bg-white text-black"
       >
         {children}
       </div>
