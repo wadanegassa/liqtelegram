@@ -35,12 +35,13 @@ function baseVars(config: ReturnType<typeof getBotConfig>, firstName?: string) {
 /** Telegram legacy Markdown is fragile — fall back to plain text on parse errors. */
 async function safeReply(ctx: BotContext, text: string, extra: Extra = {}) {
   const body = (text || "").trim() || "…";
+  const protectedExtra = { protect_content: true, ...extra };
   try {
-    await ctx.reply(body, { parse_mode: "Markdown", ...extra });
+    await ctx.reply(body, { parse_mode: "Markdown", ...protectedExtra });
   } catch (err) {
     console.error("Markdown reply failed, falling back to plain text", err);
     try {
-      await ctx.reply(body.replace(/[*_`\[\]]/g, ""), extra);
+      await ctx.reply(body.replace(/[*_`\[\]]/g, ""), protectedExtra);
     } catch (err2) {
       console.error("Plain reply failed", err2);
     }
@@ -284,6 +285,7 @@ export function createBot() {
         best.file_id,
         {
           caption: adminCaption,
+          protect_content: true,
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback("✅ Approve", `pay:approve:${request.id}`),
@@ -360,7 +362,8 @@ export function createBot() {
             renderBotText(
               settings.rejected_text,
               baseVars(config, request.first_name || undefined)
-            )
+            ),
+            { protect_content: true }
           );
         } catch (e) {
           console.error("Failed to notify student", e);
@@ -432,7 +435,9 @@ export function createBot() {
       });
 
       try {
-        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg);
+        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg, {
+          protect_content: true,
+        });
       } catch (e) {
         console.error("Failed to DM invite", e);
         await ctx.reply(

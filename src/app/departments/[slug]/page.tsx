@@ -1,5 +1,5 @@
 import { ReaderShell } from "@/components/AppShell";
-import { LockNavigation } from "@/components/LockNavigation";
+import { MemberGate } from "@/components/MemberGate";
 import { Markdown } from "@/components/Markdown";
 import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 
@@ -11,12 +11,11 @@ export default async function DepartmentPage({ params }: Props) {
   const supabase = tryCreateBrowserSupabase();
   if (!supabase) {
     return (
-      <>
-        <LockNavigation />
+      <MemberGate>
         <ReaderShell title="Unavailable">
-          <p className="text-sm text-neutral-600">Try again later.</p>
+          <p className="text-sm text-[var(--tg-hint)]">Try again later.</p>
         </ReaderShell>
-      </>
+      </MemberGate>
     );
   }
 
@@ -27,20 +26,18 @@ export default async function DepartmentPage({ params }: Props) {
     .maybeSingle();
   if (!department) {
     return (
-      <>
-        <LockNavigation />
+      <MemberGate>
         <ReaderShell title="Department not found">
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-[var(--tg-hint)]">
             Ask your admin for an updated link.
           </p>
         </ReaderShell>
-      </>
+      </MemberGate>
     );
   }
 
   return (
-    <>
-      <LockNavigation />
+    <MemberGate>
       <ReaderShell
         title={department.title}
         subtitle={department.summary || undefined}
@@ -49,6 +46,6 @@ export default async function DepartmentPage({ params }: Props) {
           <Markdown content={department.content_md} />
         </article>
       </ReaderShell>
-    </>
+    </MemberGate>
   );
 }

@@ -1,5 +1,5 @@
 import { ReaderShell } from "@/components/AppShell";
-import { LockNavigation } from "@/components/LockNavigation";
+import { MemberGate } from "@/components/MemberGate";
 import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
 import type { Chapter, Course, Exam } from "@/lib/types";
 
@@ -53,8 +53,7 @@ export default async function CoursePage({ params }: Props) {
 
   if (!bundle.ok) {
     return (
-      <>
-        <LockNavigation />
+      <MemberGate>
         <ReaderShell
           title={bundle.error === "not_found" ? "Course not found" : "Error"}
           subtitle={
@@ -63,19 +62,18 @@ export default async function CoursePage({ params }: Props) {
               : bundle.error
           }
         >
-          <p className="text-sm text-neutral-600">
+          <p className="text-sm text-[var(--tg-hint)]">
             Ask your admin for an updated link from the paid group.
           </p>
         </ReaderShell>
-      </>
+      </MemberGate>
     );
   }
 
   const { course, chapters, exams } = bundle;
 
   return (
-    <>
-      <LockNavigation />
+    <MemberGate>
       <ReaderShell
         title={course.title}
         subtitle={course.description || undefined}
@@ -85,12 +83,15 @@ export default async function CoursePage({ params }: Props) {
             Chapters
           </h2>
           {chapters.length === 0 ? (
-            <p className="text-sm text-neutral-600">No chapters listed.</p>
+            <p className="text-sm text-[var(--tg-hint)]">No chapters listed.</p>
           ) : (
             <ol className="space-y-2 text-[15px] leading-relaxed">
               {chapters.map((chapter, i) => (
-                <li key={chapter.id} className="border-b border-neutral-200 pb-2">
-                  <span className="mr-2 text-neutral-500">
+                <li
+                  key={chapter.id}
+                  className="border-b border-[var(--tg-hint)]/30 pb-2"
+                >
+                  <span className="mr-2 text-[var(--tg-hint)]">
                     {String(i + 1).padStart(2, "0")}.
                   </span>
                   {chapter.title}
@@ -98,7 +99,7 @@ export default async function CoursePage({ params }: Props) {
               ))}
             </ol>
           )}
-          <p className="mt-4 text-xs text-neutral-500">
+          <p className="mt-4 text-xs text-[var(--tg-hint)]">
             Open each chapter from its pinned link in the paid group.
           </p>
         </section>
@@ -108,24 +109,27 @@ export default async function CoursePage({ params }: Props) {
             Past exams
           </h2>
           {exams.length === 0 ? (
-            <p className="text-sm text-neutral-600">No exams listed.</p>
+            <p className="text-sm text-[var(--tg-hint)]">No exams listed.</p>
           ) : (
             <ul className="space-y-2 text-[15px] leading-relaxed">
               {exams.map((exam) => (
-                <li key={exam.id} className="border-b border-neutral-200 pb-2">
+                <li
+                  key={exam.id}
+                  className="border-b border-[var(--tg-hint)]/30 pb-2"
+                >
                   {exam.title}
                   {exam.year ? (
-                    <span className="text-neutral-500"> · {exam.year}</span>
+                    <span className="text-[var(--tg-hint)]"> · {exam.year}</span>
                   ) : null}
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-4 text-xs text-neutral-500">
+          <p className="mt-4 text-xs text-[var(--tg-hint)]">
             Open each exam from its pinned link in the paid group.
           </p>
         </section>
       </ReaderShell>
-    </>
+    </MemberGate>
   );
 }

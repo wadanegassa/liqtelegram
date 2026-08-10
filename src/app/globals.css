@@ -186,3 +186,16 @@ body {
   background: var(--tg-bg);
   color: var(--tg-text);
 }
+
+/* Best-effort content protection in Mini App */
+html.liq-protect,
+html.liq-protect body {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+html.liq-protect img {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}

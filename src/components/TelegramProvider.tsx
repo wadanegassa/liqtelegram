@@ -27,6 +27,7 @@ declare global {
       WebApp?: {
         ready: () => void;
         expand: () => void;
+        initData?: string;
         setHeaderColor?: (color: string) => void;
         setBackgroundColor?: (color: string) => void;
         BackButton?: { hide: () => void; show: () => void };
