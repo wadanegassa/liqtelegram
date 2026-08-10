@@ -6,6 +6,7 @@ import { getBotSettings } from "@/lib/bot-settings-server";
 import { renderBotText } from "@/lib/bot-settings";
 
 type BotContext = Context<Update>;
+type Extra = Record<string, unknown>;
 
 function displayName(ctx: BotContext) {
   const u = ctx.from;
@@ -16,9 +17,9 @@ function displayName(ctx: BotContext) {
 
 function mainMenu() {
   return Markup.keyboard([
-    ["💳 How to pay", "📤 I already paid"],
-    ["✅ My status", "📚 Open Mini App"],
-    ["ℹ️ Help"],
+    ["How to pay", "I already paid"],
+    ["My status", "Open Mini App"],
+    ["Help"],
   ])
     .resize()
     .persistent();
@@ -32,6 +33,21 @@ function baseVars(config: ReturnType<typeof getBotConfig>, firstName?: string) {
   };
 }
 
+/** Telegram legacy Markdown is fragile — fall back to plain text on parse errors. */
+async function safeReply(ctx: BotContext, text: string, extra: Extra = {}) {
+  const body = (text || "").trim() || "…";
+  try {
+    await ctx.reply(body, { parse_mode: "Markdown", ...extra });
+  } catch (err) {
+    console.error("Markdown reply failed, falling back to plain text", err);
+    try {
+      await ctx.reply(body.replace(/[*_`\[\]]/g, ""), extra);
+    } catch (err2) {
+      console.error("Plain reply failed", err2);
+    }
+  }
+}
+
 async function isActiveMember(telegramUserId: number) {
   const supabase = createAdminSupabase();
   const { data } = await supabase
@@ -42,13 +58,33 @@ async function isActiveMember(telegramUserId: number) {
   return Boolean(data && data.status === "active");
 }
 
-async function replyStatus(ctx: BotContext, config: ReturnType<typeof getBotConfig>) {
+async function sendPaymentInfo(ctx: BotContext, config: ReturnType<typeof getBotConfig>) {
+  const settings = await getBotSettings();
+  const vars = baseVars(config, ctx.from?.first_name);
+  await safeReply(
+    ctx,
+    renderBotText(settings.payment_instructions, vars),
+    mainMenu()
+  );
+}
+
+async function sendHelp(ctx: BotContext, config: ReturnType<typeof getBotConfig>) {
+  const settings = await getBotSettings();
+  const vars = baseVars(config, ctx.from?.first_name);
+  await safeReply(ctx, renderBotText(settings.help_text, vars), mainMenu());
+}
+
+async function replyStatus(
+  ctx: BotContext,
+  config: ReturnType<typeof getBotConfig>
+) {
   if (!ctx.from) return;
   const settings = await getBotSettings();
   const vars = baseVars(config, ctx.from.first_name);
   const member = await isActiveMember(ctx.from.id);
   if (member) {
-    await ctx.reply(
+    await safeReply(
+      ctx,
       renderBotText(settings.status_member_text, vars),
       mainMenu()
     );
@@ -65,21 +101,31 @@ async function replyStatus(ctx: BotContext, config: ReturnType<typeof getBotConf
     .maybeSingle();
 
   if (!latest) {
-    await ctx.reply(renderBotText(settings.status_none_text, vars), mainMenu());
+    await safeReply(
+      ctx,
+      renderBotText(settings.status_none_text, vars),
+      mainMenu()
+    );
     return;
   }
   if (latest.status === "pending") {
-    await ctx.reply(
+    await safeReply(
+      ctx,
       renderBotText(settings.status_pending_text, vars),
       mainMenu()
     );
     return;
   }
   if (latest.status === "rejected") {
-    await ctx.reply(renderBotText(settings.rejected_text, vars), mainMenu());
+    await safeReply(
+      ctx,
+      renderBotText(settings.rejected_text, vars),
+      mainMenu()
+    );
     return;
   }
-  await ctx.reply(
+  await safeReply(
+    ctx,
     renderBotText(settings.status_member_text, vars),
     mainMenu()
   );
@@ -100,219 +146,303 @@ export function createBot() {
   const bot = new Telegraf<BotContext>(config.token);
 
   bot.start(async (ctx) => {
-    if (ctx.chat?.type !== "private") {
-      await ctx.reply("Please message me in a private chat to join.");
-      return;
+    try {
+      if (ctx.chat?.type !== "private") {
+        await ctx.reply("Please message me in a private chat to join.");
+        return;
+      }
+      const settings = await getBotSettings();
+      const vars = baseVars(config, ctx.from?.first_name);
+      await safeReply(
+        ctx,
+        renderBotText(settings.welcome_text, vars),
+        mainMenu()
+      );
+      await safeReply(ctx, renderBotText(settings.payment_instructions, vars));
+    } catch (e) {
+      console.error("/start failed", e);
+      await ctx.reply("Sorry, something went wrong. Try /pay or /help.");
     }
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.welcome_text, vars),
-      mainMenu()
-    );
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.payment_instructions, vars)
-    );
   });
 
   bot.command("pay", async (ctx) => {
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.payment_instructions, vars),
-      mainMenu()
-    );
+    try {
+      await sendPaymentInfo(ctx, config);
+    } catch (e) {
+      console.error("/pay failed", e);
+      await ctx.reply("Could not load payment info. Try again.");
+    }
   });
 
   bot.command("help", async (ctx) => {
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.help_text, vars),
-      mainMenu()
-    );
+    try {
+      await sendHelp(ctx, config);
+    } catch (e) {
+      console.error("/help failed", e);
+      await ctx.reply("Help is temporarily unavailable.");
+    }
   });
 
   bot.command("status", async (ctx) => {
-    await replyStatus(ctx, config);
+    try {
+      await replyStatus(ctx, config);
+    } catch (e) {
+      console.error("/status failed", e);
+      await ctx.reply("Could not check status. Try again.");
+    }
   });
 
   bot.command("chatid", async (ctx) => {
     const chat = ctx.chat;
     if (!chat) return;
     await ctx.reply(
-      `Chat title: ${"title" in chat ? chat.title : "private"}\nChat ID: \`${chat.id}\`\nType: ${chat.type}`,
-      { parse_mode: "Markdown" }
+      `Chat title: ${"title" in chat ? chat.title : "private"}\nChat ID: ${chat.id}\nType: ${chat.type}`
     );
   });
 
-  bot.hears("💳 How to pay", async (ctx) => {
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.payment_instructions, vars)
-    );
+  // Flexible menu matching (emoji differences used to break exact hears)
+  bot.hears(/how to pay/i, async (ctx) => {
+    try {
+      await sendPaymentInfo(ctx, config);
+    } catch (e) {
+      console.error("how to pay failed", e);
+    }
   });
 
-  bot.hears("📤 I already paid", async (ctx) => {
+  bot.hears(/i already paid/i, async (ctx) => {
     const settings = await getBotSettings();
     const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.reply(renderBotText(settings.ask_screenshot_text, vars));
+    await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
   });
 
-  bot.hears("✅ My status", async (ctx) => {
+  bot.hears(/my status/i, async (ctx) => {
     await replyStatus(ctx, config);
   });
 
-  bot.hears("📚 Open Mini App", async (ctx) => {
+  bot.hears(/open mini app/i, async (ctx) => {
     await ctx.reply(`Open the Mini App:\n${config.miniAppUrl}`, mainMenu());
   });
 
-  bot.hears("ℹ️ Help", async (ctx) => {
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
-    await ctx.replyWithMarkdown(
-      renderBotText(settings.help_text, vars),
-      mainMenu()
-    );
+  bot.hears(/^(ℹ️\s*)?help$/i, async (ctx) => {
+    await sendHelp(ctx, config);
   });
 
   bot.on("photo", async (ctx) => {
-    if (ctx.chat?.type !== "private") {
-      await ctx.reply(
-        "Please send payment screenshots in a private chat with me."
-      );
-      return;
-    }
-    if (!ctx.from) return;
-
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from.first_name);
-
-    if (!config.adminGroupId) {
-      await ctx.reply(
-        "Admin proof group is not configured yet. Tell the founder to set TELEGRAM_ADMIN_GROUP_ID."
-      );
-      return;
-    }
-
-    const photos = ctx.message.photo;
-    const best = photos[photos.length - 1];
-    const caption = ctx.message.caption || "";
-    const supabase = createAdminSupabase();
-
-    const { data: request, error } = await supabase
-      .from("payment_requests")
-      .insert({
-        telegram_user_id: ctx.from.id,
-        username: ctx.from.username || null,
-        first_name: ctx.from.first_name || null,
-        last_name: ctx.from.last_name || null,
-        caption,
-        file_id: best.file_id,
-        status: "pending",
-      })
-      .select("*")
-      .single();
-
-    if (error || !request) {
-      console.error(error);
-      await ctx.reply(
-        "Could not save your proof. If this keeps happening, the founder needs to run supabase/payments.sql."
-      );
-      return;
-    }
-
-    const adminCaption = [
-      "🧾 *New payment proof*",
-      `Request: \`${request.id}\``,
-      `From: ${displayName(ctx)}`,
-      `User ID: \`${ctx.from.id}\``,
-      caption ? `Note: ${caption}` : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    const sent = await ctx.telegram.sendPhoto(
-      config.adminGroupId,
-      best.file_id,
-      {
-        caption: adminCaption,
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [
-            Markup.button.callback("✅ Approve", `pay:approve:${request.id}`),
-            Markup.button.callback("❌ Reject", `pay:reject:${request.id}`),
-          ],
-        ]),
+    try {
+      if (ctx.chat?.type !== "private") {
+        await ctx.reply(
+          "Please send payment screenshots in a private chat with me."
+        );
+        return;
       }
-    );
+      if (!ctx.from) return;
 
-    await supabase
-      .from("payment_requests")
-      .update({
-        admin_chat_id: sent.chat.id,
-        admin_message_id: sent.message_id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", request.id);
+      const settings = await getBotSettings();
+      const vars = baseVars(config, ctx.from.first_name);
 
-    await ctx.reply(
-      renderBotText(settings.proof_received_text, vars),
-      mainMenu()
-    );
-  });
+      if (!config.adminGroupId) {
+        await ctx.reply(
+          "Admin proof group is not configured yet. Set TELEGRAM_ADMIN_GROUP_ID on Vercel and redeploy."
+        );
+        return;
+      }
 
-  bot.action(/^pay:(approve|reject):(.+)$/, async (ctx) => {
-    const match = ctx.match;
-    const action = match[1] as "approve" | "reject";
-    const requestId = match[2];
-    const adminId = ctx.from?.id;
-    if (!adminId) return;
+      const photos = ctx.message.photo;
+      const best = photos[photos.length - 1];
+      const caption = ctx.message.caption || "";
+      const supabase = createAdminSupabase();
 
-    if (config.adminGroupId && ctx.chat?.id !== config.adminGroupId) {
-      await ctx.answerCbQuery("Use these buttons in the proof group only.");
-      return;
-    }
+      const { data: request, error } = await supabase
+        .from("payment_requests")
+        .insert({
+          telegram_user_id: ctx.from.id,
+          username: ctx.from.username || null,
+          first_name: ctx.from.first_name || null,
+          last_name: ctx.from.last_name || null,
+          caption,
+          file_id: best.file_id,
+          status: "pending",
+        })
+        .select("*")
+        .single();
 
-    const settings = await getBotSettings();
-    const supabase = createAdminSupabase();
-    const { data: request } = await supabase
-      .from("payment_requests")
-      .select("*")
-      .eq("id", requestId)
-      .maybeSingle();
+      if (error || !request) {
+        console.error(error);
+        await ctx.reply(
+          "Could not save your proof. Make sure supabase/payments.sql was run."
+        );
+        return;
+      }
 
-    if (!request) {
-      await ctx.answerCbQuery("Request not found");
-      return;
-    }
-    if (request.status !== "pending") {
-      await ctx.answerCbQuery(`Already ${request.status}`);
-      return;
-    }
+      const adminCaption = [
+        "New payment proof",
+        `Request: ${request.id}`,
+        `From: ${displayName(ctx)}`,
+        `User ID: ${ctx.from.id}`,
+        caption ? `Note: ${caption}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
 
-    if (action === "reject") {
+      const sent = await ctx.telegram.sendPhoto(
+        config.adminGroupId,
+        best.file_id,
+        {
+          caption: adminCaption,
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback("✅ Approve", `pay:approve:${request.id}`),
+              Markup.button.callback("❌ Reject", `pay:reject:${request.id}`),
+            ],
+          ]),
+        }
+      );
+
       await supabase
         .from("payment_requests")
         .update({
-          status: "rejected",
+          admin_chat_id: sent.chat.id,
+          admin_message_id: sent.message_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", request.id);
+
+      await safeReply(
+        ctx,
+        renderBotText(settings.proof_received_text, vars),
+        mainMenu()
+      );
+    } catch (e) {
+      console.error("photo handler failed", e);
+      await ctx.reply("Could not process that screenshot. Please try again.");
+    }
+  });
+
+  bot.action(/^pay:(approve|reject):(.+)$/, async (ctx) => {
+    try {
+      const match = ctx.match;
+      const action = match[1] as "approve" | "reject";
+      const requestId = match[2];
+      const adminId = ctx.from?.id;
+      if (!adminId) return;
+
+      if (config.adminGroupId && ctx.chat?.id !== config.adminGroupId) {
+        await ctx.answerCbQuery("Use these buttons in the proof group only.");
+        return;
+      }
+
+      const settings = await getBotSettings();
+      const supabase = createAdminSupabase();
+      const { data: request } = await supabase
+        .from("payment_requests")
+        .select("*")
+        .eq("id", requestId)
+        .maybeSingle();
+
+      if (!request) {
+        await ctx.answerCbQuery("Request not found");
+        return;
+      }
+      if (request.status !== "pending") {
+        await ctx.answerCbQuery(`Already ${request.status}`);
+        return;
+      }
+
+      if (action === "reject") {
+        await supabase
+          .from("payment_requests")
+          .update({
+            status: "rejected",
+            reviewed_by: adminId,
+            reviewed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", requestId);
+
+        try {
+          await ctx.telegram.sendMessage(
+            request.telegram_user_id,
+            renderBotText(
+              settings.rejected_text,
+              baseVars(config, request.first_name || undefined)
+            )
+          );
+        } catch (e) {
+          console.error("Failed to notify student", e);
+        }
+
+        const oldCaption =
+          ctx.callbackQuery.message && "caption" in ctx.callbackQuery.message
+            ? ctx.callbackQuery.message.caption || ""
+            : "";
+        await ctx.editMessageCaption(
+          `${oldCaption}\n\nRejected by admin ${adminId}`,
+          { reply_markup: { inline_keyboard: [] } }
+        );
+        await ctx.answerCbQuery("Rejected");
+        return;
+      }
+
+      if (!config.paidGroupId) {
+        await ctx.answerCbQuery("TELEGRAM_PAID_GROUP_ID is not set");
+        await ctx.reply(
+          "Set TELEGRAM_PAID_GROUP_ID on Vercel, make the bot admin of the paid group, then Approve again."
+        );
+        return;
+      }
+
+      let inviteLink = "";
+      try {
+        const link = await ctx.telegram.createChatInviteLink(
+          config.paidGroupId,
+          {
+            name: `liq-${request.telegram_user_id}`.slice(0, 32),
+            member_limit: 1,
+            expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
+          }
+        );
+        inviteLink = link.invite_link;
+      } catch (e) {
+        console.error(e);
+        await ctx.answerCbQuery("Could not create invite link");
+        await ctx.reply(
+          "Failed to create invite link. Bot must be admin with invite permission in the paid group."
+        );
+        return;
+      }
+
+      await supabase.from("members").upsert({
+        telegram_user_id: request.telegram_user_id,
+        username: request.username,
+        first_name: request.first_name,
+        last_name: request.last_name,
+        status: "active",
+        approved_at: new Date().toISOString(),
+      });
+
+      await supabase
+        .from("payment_requests")
+        .update({
+          status: "approved",
           reviewed_by: adminId,
           reviewed_at: new Date().toISOString(),
+          invite_link: inviteLink,
           updated_at: new Date().toISOString(),
         })
         .eq("id", requestId);
 
+      const approveMsg = renderBotText(settings.approved_text, {
+        ...baseVars(config, request.first_name || undefined),
+        invite_link: inviteLink,
+      });
+
       try {
-        await ctx.telegram.sendMessage(
-          request.telegram_user_id,
-          renderBotText(
-            settings.rejected_text,
-            baseVars(config, request.first_name || undefined)
-          )
-        );
+        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg);
       } catch (e) {
-        console.error("Failed to notify student", e);
+        console.error("Failed to DM invite", e);
+        await ctx.reply(
+          `Approved, but could not DM the student. Send this link manually:\n${inviteLink}`
+        );
       }
 
       const oldCaption =
@@ -320,89 +450,18 @@ export function createBot() {
           ? ctx.callbackQuery.message.caption || ""
           : "";
       await ctx.editMessageCaption(
-        `${oldCaption}\n\n❌ Rejected by admin \`${adminId}\``,
-        {
-          parse_mode: "Markdown",
-          reply_markup: { inline_keyboard: [] },
-        }
+        `${oldCaption}\n\nApproved by admin ${adminId}\nInvite sent.`,
+        { reply_markup: { inline_keyboard: [] } }
       );
-      await ctx.answerCbQuery("Rejected");
-      return;
-    }
-
-    if (!config.paidGroupId) {
-      await ctx.answerCbQuery("TELEGRAM_PAID_GROUP_ID is not set");
-      await ctx.reply(
-        "Set TELEGRAM_PAID_GROUP_ID in env, make the bot admin of the paid group, then try Approve again."
-      );
-      return;
-    }
-
-    let inviteLink = "";
-    try {
-      const link = await ctx.telegram.createChatInviteLink(config.paidGroupId, {
-        name: `liq-${request.telegram_user_id}`.slice(0, 32),
-        member_limit: 1,
-        expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-      });
-      inviteLink = link.invite_link;
+      await ctx.answerCbQuery("Approved");
     } catch (e) {
-      console.error(e);
-      await ctx.answerCbQuery("Could not create invite link");
-      await ctx.reply(
-        "Failed to create invite link. Make sure the bot is admin of the paid group with invite permission."
-      );
-      return;
-    }
-
-    await supabase.from("members").upsert({
-      telegram_user_id: request.telegram_user_id,
-      username: request.username,
-      first_name: request.first_name,
-      last_name: request.last_name,
-      status: "active",
-      approved_at: new Date().toISOString(),
-    });
-
-    await supabase
-      .from("payment_requests")
-      .update({
-        status: "approved",
-        reviewed_by: adminId,
-        reviewed_at: new Date().toISOString(),
-        invite_link: inviteLink,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", requestId);
-
-    try {
-      await ctx.telegram.sendMessage(
-        request.telegram_user_id,
-        renderBotText(settings.approved_text, {
-          ...baseVars(config, request.first_name || undefined),
-          invite_link: inviteLink,
-        }),
-        { parse_mode: "Markdown" }
-      );
-    } catch (e) {
-      console.error("Failed to DM invite", e);
-      await ctx.reply(
-        `Approved, but could not DM the student. Send this link manually:\n${inviteLink}`
-      );
-    }
-
-    const oldCaption =
-      ctx.callbackQuery.message && "caption" in ctx.callbackQuery.message
-        ? ctx.callbackQuery.message.caption || ""
-        : "";
-    await ctx.editMessageCaption(
-      `${oldCaption}\n\n✅ Approved by admin \`${adminId}\`\nInvite sent.`,
-      {
-        parse_mode: "Markdown",
-        reply_markup: { inline_keyboard: [] },
+      console.error("approve/reject failed", e);
+      try {
+        await ctx.answerCbQuery("Error — check logs");
+      } catch {
+        /* ignore */
       }
-    );
-    await ctx.answerCbQuery("Approved");
+    }
   });
 
   bot.catch((err, ctx) => {
