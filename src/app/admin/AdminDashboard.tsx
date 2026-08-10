@@ -12,8 +12,10 @@ import {
 } from "@/lib/links";
 import { slugify } from "@/lib/slug";
 import type { Chapter, Course, Department, Exam } from "@/lib/types";
+import type { BotSettings } from "@/lib/bot-settings";
+import { DEFAULT_BOT_SETTINGS } from "@/lib/bot-settings";
 
-type Tab = "courses" | "chapters" | "exams" | "departments";
+type Tab = "courses" | "chapters" | "exams" | "departments" | "bot";
 
 export function AdminDashboard() {
   const [checking, setChecking] = useState(true);
@@ -186,7 +188,7 @@ export function AdminDashboard() {
   return (
     <AppShell
       title="Content admin"
-      subtitle="Add courses, chapters, exams, and departments. Copy the Telegram link and paste it in the group."
+      subtitle="Manage courses and bot payment texts. Copy Telegram links for the paid group."
       backHref="/"
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -196,6 +198,7 @@ export function AdminDashboard() {
             ["chapters", "Chapters"],
             ["exams", "Exams"],
             ["departments", "Departments"],
+            ["bot", "Bot texts"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -315,6 +318,16 @@ export function AdminDashboard() {
             if (!confirm("Delete this department?")) return;
             const ok = await api(`/api/admin/departments/${id}`, "DELETE");
             if (ok) await refresh();
+          }}
+        />
+      ) : null}
+
+      {tab === "bot" ? (
+        <BotSettingsAdmin
+          busy={busy}
+          onSave={async (payload) => {
+            const ok = await api("/api/admin/bot-settings", "PUT", payload);
+            return ok;
           }}
         />
       ) : null}
@@ -927,5 +940,127 @@ function DepartmentsAdmin({
         ))}
       </div>
     </div>
+  );
+}
+
+function BotSettingsAdmin({
+  busy,
+  onSave,
+}: {
+  busy: boolean;
+  onSave: (p: Record<string, unknown>) => Promise<boolean>;
+}) {
+  const [loading, setLoading] = useState(true);
+  const [hint, setHint] = useState("");
+  const [form, setForm] = useState<Omit<BotSettings, "id" | "updated_at">>({
+    ...DEFAULT_BOT_SETTINGS,
+  });
+
+  useEffect(() => {
+    fetch("/api/admin/bot-settings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.hint) setHint(data.hint);
+        if (data.error && !data.settings) setHint(data.error);
+        if (data.settings) {
+          setForm({
+            welcome_text: data.settings.welcome_text || DEFAULT_BOT_SETTINGS.welcome_text,
+            payment_instructions:
+              data.settings.payment_instructions ||
+              DEFAULT_BOT_SETTINGS.payment_instructions,
+            help_text: data.settings.help_text || DEFAULT_BOT_SETTINGS.help_text,
+            ask_screenshot_text:
+              data.settings.ask_screenshot_text ||
+              DEFAULT_BOT_SETTINGS.ask_screenshot_text,
+            proof_received_text:
+              data.settings.proof_received_text ||
+              DEFAULT_BOT_SETTINGS.proof_received_text,
+            approved_text:
+              data.settings.approved_text || DEFAULT_BOT_SETTINGS.approved_text,
+            rejected_text:
+              data.settings.rejected_text || DEFAULT_BOT_SETTINGS.rejected_text,
+            status_member_text:
+              data.settings.status_member_text ||
+              DEFAULT_BOT_SETTINGS.status_member_text,
+            status_pending_text:
+              data.settings.status_pending_text ||
+              DEFAULT_BOT_SETTINGS.status_pending_text,
+            status_none_text:
+              data.settings.status_none_text ||
+              DEFAULT_BOT_SETTINGS.status_none_text,
+          });
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  function setField<K extends keyof typeof form>(key: K, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  if (loading) {
+    return <p className="text-sm text-[var(--tg-hint)]">Loading bot texts…</p>;
+  }
+
+  const fields: Array<{
+    key: keyof typeof form;
+    label: string;
+    rows?: number;
+  }> = [
+    { key: "welcome_text", label: "Welcome message (/start)", rows: 5 },
+    {
+      key: "payment_instructions",
+      label: "Payment instructions (accounts, amount, methods)",
+      rows: 12,
+    },
+    { key: "help_text", label: "Help text", rows: 8 },
+    { key: "ask_screenshot_text", label: "Ask for screenshot text", rows: 3 },
+    { key: "proof_received_text", label: "Proof received text", rows: 3 },
+    {
+      key: "approved_text",
+      label: "Approved message (use {{invite_link}} and {{mini_app_url}})",
+      rows: 8,
+    },
+    { key: "rejected_text", label: "Rejected message", rows: 4 },
+    { key: "status_member_text", label: "Status: already a member", rows: 3 },
+    { key: "status_pending_text", label: "Status: pending review", rows: 3 },
+    { key: "status_none_text", label: "Status: no proof yet", rows: 3 },
+  ];
+
+  return (
+    <form
+      className="card-liq space-y-4"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        await onSave({ ...form });
+      }}
+    >
+      <div>
+        <h3 className="font-display text-lg font-semibold">Bot texts & payment details</h3>
+        <p className="mt-1 text-sm text-[var(--tg-hint)]">
+          Edit what students see in Telegram. Supports Markdown (*bold*). Placeholders:{" "}
+          <code>{"{{first_name}}"}</code>, <code>{"{{invite_link}}"}</code>,{" "}
+          <code>{"{{mini_app_url}}"}</code>.
+        </p>
+        {hint ? (
+          <p className="mt-2 text-sm text-amber-800">{hint}</p>
+        ) : null}
+      </div>
+
+      {fields.map((field) => (
+        <Field key={field.key} label={field.label}>
+          <textarea
+            className="input-liq min-h-24 font-mono text-xs"
+            style={{ minHeight: `${(field.rows || 4) * 1.4}rem` }}
+            value={form[field.key]}
+            onChange={(e) => setField(field.key, e.target.value)}
+          />
+        </Field>
+      ))}
+
+      <button className="btn-liq" disabled={busy} type="submit">
+        {busy ? "Saving…" : "Save bot texts"}
+      </button>
+    </form>
   );
 }

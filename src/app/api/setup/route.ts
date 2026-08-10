@@ -11,6 +11,7 @@ export async function GET() {
       "departments",
       "members",
       "payment_requests",
+      "bot_settings",
     ] as const;
     const status: Record<string, "ok" | "missing" | "error"> = {};
 
@@ -26,7 +27,7 @@ export async function GET() {
     const contentReady = ["courses", "chapters", "exams", "departments"].every(
       (t) => status[t] === "ok"
     );
-    const botReady = ["members", "payment_requests"].every(
+    const botReady = ["members", "payment_requests", "bot_settings"].every(
       (t) => status[t] === "ok"
     );
 
@@ -38,7 +39,7 @@ export async function GET() {
       setup: !contentReady
         ? "Run supabase/schema.sql in Supabase SQL Editor."
         : !botReady
-          ? "Run supabase/payments.sql in Supabase SQL Editor."
+          ? "Run supabase/payments.sql and supabase/bot_settings.sql in Supabase SQL Editor."
           : null,
       botEnv: {
         adminGroup: Boolean(process.env.TELEGRAM_ADMIN_GROUP_ID),
