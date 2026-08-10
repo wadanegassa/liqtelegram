@@ -11,11 +11,30 @@
   --tg-button: #000000;
   --tg-button-text: #ffffff;
   --tg-secondary: #f5f5f5;
+  --tg-code-bg: #f0f0f0;
+  --tg-code-border: #d4d4d4;
+  --tg-pre-bg: #000000;
+  --tg-pre-text: #ffffff;
+}
+
+html.dark {
+  --liq-accent: #ffffff;
+  --liq-accent-soft: #171717;
+  --tg-bg: #000000;
+  --tg-text: #ffffff;
+  --tg-hint: #a3a3a3;
+  --tg-button: #ffffff;
+  --tg-button-text: #000000;
+  --tg-secondary: #171717;
+  --tg-code-bg: #171717;
+  --tg-code-border: #404040;
+  --tg-pre-bg: #ffffff;
+  --tg-pre-text: #000000;
 }
 
 body {
-  color: #000000;
-  background: #ffffff;
+  color: var(--tg-text);
+  background: var(--tg-bg);
   font-family: var(--font-body), "Segoe UI", sans-serif;
 }
 
@@ -24,7 +43,7 @@ body {
 }
 
 .prose-liq {
-  color: #000000;
+  color: var(--tg-text);
   font-size: 1.05rem;
   line-height: 1.75;
   overflow-wrap: anywhere;
@@ -37,7 +56,7 @@ body {
 .prose-liq h4 {
   font-family: var(--font-display), Georgia, serif;
   font-weight: 650;
-  color: #000000;
+  color: var(--tg-text);
   margin-top: 1.35em;
   margin-bottom: 0.5em;
   line-height: 1.3;
@@ -74,31 +93,31 @@ body {
 
 .prose-liq hr {
   border: 0;
-  border-top: 1px solid #000000;
+  border-top: 1px solid var(--tg-text);
   margin: 1.5em 0;
 }
 
 .prose-liq a {
-  color: #000000;
+  color: var(--tg-text);
   text-decoration: underline;
-  pointer-events: none; /* locked reader — no leaving via md links */
+  pointer-events: none;
 }
 
 .prose-liq code {
-  background: #f0f0f0;
-  border: 1px solid #d4d4d4;
+  background: var(--tg-code-bg);
+  border: 1px solid var(--tg-code-border);
   border-radius: 0.25rem;
   padding: 0.1rem 0.35rem;
   font-size: 0.92em;
-  color: #000000;
+  color: var(--tg-text);
 }
 
 .prose-liq pre {
   overflow-x: auto;
-  border: 1px solid #000000;
+  border: 1px solid var(--tg-text);
   border-radius: 0.5rem;
-  background: #000000;
-  color: #ffffff;
+  background: var(--tg-pre-bg);
+  color: var(--tg-pre-text);
   padding: 0.9rem 1rem;
   margin: 1em 0;
   -webkit-overflow-scrolling: touch;
@@ -112,10 +131,10 @@ body {
 }
 
 .prose-liq blockquote {
-  border-left: 3px solid #000000;
+  border-left: 3px solid var(--tg-text);
   margin: 1em 0;
   padding-left: 0.9rem;
-  color: #404040;
+  color: var(--tg-hint);
 }
 
 .prose-liq table {
@@ -129,7 +148,7 @@ body {
 
 .prose-liq th,
 .prose-liq td {
-  border: 1px solid #000000;
+  border: 1px solid var(--tg-text);
   padding: 0.45rem 0.6rem;
   text-align: left;
   vertical-align: top;
@@ -138,21 +157,32 @@ body {
 .prose-liq img {
   max-width: 100%;
   height: auto;
-  border: 1px solid #000000;
+  border: 1px solid var(--tg-text);
 }
 
 .input-liq {
-  @apply w-full rounded-none border border-black bg-white px-3 py-2 text-sm text-black outline-none focus:ring-1 focus:ring-black;
+  @apply w-full rounded-none border px-3 py-2 text-sm outline-none;
+  border-color: var(--tg-text);
+  background: var(--tg-bg);
+  color: var(--tg-text);
 }
 
 .btn-liq {
-  @apply rounded-none bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-50;
+  @apply rounded-none px-4 py-2 text-sm font-semibold disabled:opacity-50;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
 }
 
 .btn-ghost {
-  @apply rounded-none border border-black bg-white px-3 py-2 text-sm text-black;
+  @apply rounded-none border px-3 py-2 text-sm;
+  border-color: var(--tg-text);
+  background: var(--tg-bg);
+  color: var(--tg-text);
 }
 
 .card-liq {
-  @apply rounded-none border border-black bg-white p-4;
+  @apply rounded-none border p-4;
+  border-color: var(--tg-text);
+  background: var(--tg-bg);
+  color: var(--tg-text);
 }

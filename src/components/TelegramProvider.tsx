@@ -6,38 +6,17 @@ import {
   useEffect,
   useMemo,
   useState,
-  type CSSProperties,
   type ReactNode,
 } from "react";
 
-type TelegramTheme = {
-  bg: string;
-  text: string;
-  hint: string;
-  button: string;
-  buttonText: string;
-  secondary: string;
-};
-
 type TelegramContextValue = {
   ready: boolean;
-  theme: TelegramTheme;
   startParam: string | null;
   userName: string | null;
 };
 
-const bwTheme: TelegramTheme = {
-  bg: "#ffffff",
-  text: "#000000",
-  hint: "#525252",
-  button: "#000000",
-  buttonText: "#ffffff",
-  secondary: "#f5f5f5",
-};
-
 const TelegramContext = createContext<TelegramContextValue>({
   ready: false,
-  theme: bwTheme,
   startParam: null,
   userName: null,
 });
@@ -66,7 +45,6 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [startParam, setStartParam] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
-  const theme = bwTheme;
 
   useEffect(() => {
     const wa = window.Telegram?.WebApp;
@@ -75,8 +53,6 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       wa.expand();
       try {
         wa.BackButton?.hide?.();
-        wa.setHeaderColor?.("#ffffff");
-        wa.setBackgroundColor?.("#ffffff");
       } catch {
         /* ignore */
       }
@@ -91,25 +67,13 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ ready, theme, startParam, userName }),
-    [ready, theme, startParam, userName]
+    () => ({ ready, startParam, userName }),
+    [ready, startParam, userName]
   );
 
   return (
     <TelegramContext.Provider value={value}>
-      <div
-        style={
-          {
-            "--tg-bg": theme.bg,
-            "--tg-text": theme.text,
-            "--tg-hint": theme.hint,
-            "--tg-button": theme.button,
-            "--tg-button-text": theme.buttonText,
-            "--tg-secondary": theme.secondary,
-          } as CSSProperties
-        }
-        className="min-h-screen bg-white text-black"
-      >
+      <div className="min-h-screen bg-[var(--tg-bg)] text-[var(--tg-text)]">
         {children}
       </div>
     </TelegramContext.Provider>

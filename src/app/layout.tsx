@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import Script from "next/script";
 import { TelegramProvider } from "@/components/TelegramProvider";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { StartParamRouter } from "@/components/StartParamRouter";
 import "./globals.css";
 
@@ -26,16 +27,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${display.variable} ${body.variable} antialiased`}>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
         />
-        <TelegramProvider>
-          <StartParamRouter />
-          {children}
-        </TelegramProvider>
+        <ThemeProvider>
+          <TelegramProvider>
+            <StartParamRouter />
+            {children}
+          </TelegramProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
