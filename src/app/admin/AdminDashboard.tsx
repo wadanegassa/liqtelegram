@@ -350,6 +350,78 @@ function Field({
   );
 }
 
+/** Upload lesson images so markdown like ![alt](graphs/file.png) works for students. */
+function MarkdownImageUpload({
+  onInserted,
+}: {
+  onInserted: (markdownLine: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [path, setPath] = useState("graphs/");
+
+  async function onFile(file: File | null) {
+    if (!file) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const form = new FormData();
+      const objectPath = path.endsWith("/")
+        ? `${path}${file.name}`
+        : path || `graphs/${file.name}`;
+      form.set("file", file);
+      form.set("path", objectPath);
+      const res = await fetch("/api/admin/assets", {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(data.error || "Upload failed");
+        return;
+      }
+      onInserted(data.markdown || `![](${data.path})`);
+      setMessage(`Uploaded: ${data.path}`);
+    } catch {
+      setMessage("Upload failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-none border border-[var(--tg-text)] p-3 text-sm space-y-2">
+      <div className="font-medium">Lesson images</div>
+      <p className="text-xs text-[var(--tg-hint)]">
+        Relative markdown like{" "}
+        <code>![Circular flow](graphs/circular_flow_labeled.png)</code> only
+        works after the PNG is uploaded here (same path).
+      </p>
+      <Field label="Upload path (keep graphs/… to match your markdown)">
+        <input
+          className="input-liq"
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          placeholder="graphs/circular_flow_labeled.png"
+        />
+      </Field>
+      <input
+        type="file"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0] || null;
+          void onFile(f);
+          e.target.value = "";
+        }}
+      />
+      {message ? (
+        <p className="text-xs text-[var(--tg-hint)]">{message}</p>
+      ) : null}
+    </div>
+  );
+}
+
 function CoursesAdmin({
   courses,
   busy,
@@ -588,6 +660,13 @@ function ChaptersAdmin({
             placeholder="# Chapter title&#10;&#10;Paste explanation markdown here…"
           />
         </Field>
+        <MarkdownImageUpload
+          onInserted={(line) =>
+            setContent((prev) =>
+              prev.trim() ? `${prev.trimEnd()}\n\n${line}\n` : `${line}\n`
+            )
+          }
+        />
         <button
           className="btn-liq"
           disabled={busy || !selectedCourseId}
@@ -762,6 +841,13 @@ function ExamsAdmin({
             onChange={(e) => setContent(e.target.value)}
           />
         </Field>
+        <MarkdownImageUpload
+          onInserted={(line) =>
+            setContent((prev) =>
+              prev.trim() ? `${prev.trimEnd()}\n\n${line}\n` : `${line}\n`
+            )
+          }
+        />
         <button
           className="btn-liq"
           disabled={busy || !selectedCourseId}
@@ -897,6 +983,13 @@ function DepartmentsAdmin({
             onChange={(e) => setContent(e.target.value)}
           />
         </Field>
+        <MarkdownImageUpload
+          onInserted={(line) =>
+            setContent((prev) =>
+              prev.trim() ? `${prev.trimEnd()}\n\n${line}\n` : `${line}\n`
+            )
+          }
+        />
         <button className="btn-liq" disabled={busy} type="submit">
           {editing ? "Update department" : "Save department"}
         </button>

@@ -154,9 +154,12 @@ body {
   vertical-align: top;
 }
 
-.prose-liq img {
+.prose-liq img,
+.prose-liq .liq-md-img {
+  display: block;
   max-width: 100%;
   height: auto;
+  margin: 1rem 0;
   border: 1px solid var(--tg-text);
 }
 
