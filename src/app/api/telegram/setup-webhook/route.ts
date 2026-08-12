@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
 
     const webhookUrl = `${base.replace(/\/$/, "")}/api/telegram/webhook`;
     await launchCommands();
+    const secretOk = /^[A-Za-z0-9_-]{1,256}$/.test(config.webhookSecret);
     await bot.telegram.setWebhook(webhookUrl, {
-      secret_token: config.webhookSecret,
-      drop_pending_updates: true,
+      ...(secretOk ? { secret_token: config.webhookSecret } : {}),
+      drop_pending_updates: false,
       allowed_updates: ["message", "callback_query"],
     });
 
