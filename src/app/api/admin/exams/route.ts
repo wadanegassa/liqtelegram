@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isValidSlug, slugify } from "@/lib/slug";
+import {
+  courseSlugById,
+  revalidateCourseContent,
+} from "@/lib/revalidate-content";
 
 export async function GET(request: Request) {
   if (!(await requireAdmin())) {
@@ -55,5 +59,11 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const courseSlug = await courseSlugById(course_id);
+  if (courseSlug) {
+    revalidateCourseContent(courseSlug, { examSlug: data.slug });
+  }
+
   return NextResponse.json({ exam: data }, { status: 201 });
 }

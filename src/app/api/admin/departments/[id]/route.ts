@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isValidSlug, slugify } from "@/lib/slug";
+import { revalidateDepartmentContent } from "@/lib/revalidate-content";
 
 type Params = { params: { id: string } };
 
@@ -30,6 +31,12 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   const supabase = createAdminSupabase();
+  const { data: before } = await supabase
+    .from("departments")
+    .select("slug")
+    .eq("id", params.id)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from("departments")
     .update(patch)
@@ -40,6 +47,12 @@ export async function PATCH(request: Request, { params }: Params) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  revalidateDepartmentContent(data.slug);
+  if (before?.slug && before.slug !== data.slug) {
+    revalidateDepartmentContent(before.slug);
+  }
+
   return NextResponse.json({ department: data });
 }
 
@@ -49,6 +62,12 @@ export async function DELETE(_request: Request, { params }: Params) {
   }
 
   const supabase = createAdminSupabase();
+  const { data: before } = await supabase
+    .from("departments")
+    .select("slug")
+    .eq("id", params.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("departments")
     .delete()
@@ -56,5 +75,8 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  if (before?.slug) revalidateDepartmentContent(before.slug);
+
   return NextResponse.json({ ok: true });
 }

@@ -1,9 +1,12 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { ReaderShell } from "@/components/AppShell";
 import { MemberGate } from "@/components/MemberGate";
-import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
+import { tryCreateServerSupabase } from "@/lib/supabase/server";
 import type { Chapter, Course, Exam } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 type Props = { params: { slug: string } };
 
@@ -11,7 +14,7 @@ async function getCourseBundle(slug: string): Promise<
   | { ok: true; course: Course; chapters: Chapter[]; exams: Exam[] }
   | { ok: false; error: string }
 > {
-  const supabase = tryCreateBrowserSupabase();
+  const supabase = tryCreateServerSupabase();
   if (!supabase) {
     return { ok: false, error: "Content is temporarily unavailable." };
   }
@@ -49,6 +52,7 @@ async function getCourseBundle(slug: string): Promise<
 }
 
 export default async function CoursePage({ params }: Props) {
+  noStore();
   const bundle = await getCourseBundle(params.slug);
 
   if (!bundle.ok) {

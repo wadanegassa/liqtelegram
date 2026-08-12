@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isValidSlug, slugify } from "@/lib/slug";
+import { revalidateDepartmentContent } from "@/lib/revalidate-content";
 
 export async function GET() {
   if (!(await requireAdmin())) {
@@ -50,5 +51,8 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  revalidateDepartmentContent(data.slug);
+
   return NextResponse.json({ department: data }, { status: 201 });
 }

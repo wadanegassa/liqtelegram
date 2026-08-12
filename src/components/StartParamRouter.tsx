@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { parseStartParam, pathForTarget } from "@/lib/links";
 import { useTelegram } from "@/components/TelegramProvider";
 
 export function StartParamRouter() {
   const { ready, startParam } = useTelegram();
-  const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
@@ -15,8 +14,10 @@ export function StartParamRouter() {
     if (pathname !== "/") return;
     const target = parseStartParam(startParam);
     const path = pathForTarget(target);
-    if (path !== "/") router.replace(path);
-  }, [ready, startParam, pathname, router]);
+    if (path === "/") return;
+    // Hard navigation so Telegram always loads fresh SSR content (not a soft cache).
+    window.location.replace(path);
+  }, [ready, startParam, pathname]);
 
   return null;
 }

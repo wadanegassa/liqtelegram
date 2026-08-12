@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { isValidSlug, slugify } from "@/lib/slug";
+import {
+  courseSlugById,
+  revalidateCourseContent,
+} from "@/lib/revalidate-content";
 
 type Params = { params: { id: string } };
 
@@ -29,6 +33,12 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   const supabase = createAdminSupabase();
+  const { data: before } = await supabase
+    .from("chapters")
+    .select("slug, course_id")
+    .eq("id", params.id)
+    .maybeSingle();
+
   const { data, error } = await supabase
     .from("chapters")
     .update(patch)
@@ -39,6 +49,15 @@ export async function PATCH(request: Request, { params }: Params) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  const courseSlug = await courseSlugById(data.course_id);
+  if (courseSlug) {
+    revalidateCourseContent(courseSlug, { chapterSlug: data.slug });
+    if (before?.slug && before.slug !== data.slug) {
+      revalidateCourseContent(courseSlug, { chapterSlug: before.slug });
+    }
+  }
+
   return NextResponse.json({ chapter: data });
 }
 
@@ -48,6 +67,12 @@ export async function DELETE(_request: Request, { params }: Params) {
   }
 
   const supabase = createAdminSupabase();
+  const { data: before } = await supabase
+    .from("chapters")
+    .select("slug, course_id")
+    .eq("id", params.id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from("chapters")
     .delete()
@@ -55,5 +80,13 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  if (before) {
+    const courseSlug = await courseSlugById(before.course_id);
+    if (courseSlug) {
+      revalidateCourseContent(courseSlug, { chapterSlug: before.slug });
+    }
+  }
+
   return NextResponse.json({ ok: true });
 }

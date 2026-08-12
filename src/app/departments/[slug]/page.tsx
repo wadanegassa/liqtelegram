@@ -1,14 +1,18 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { ReaderShell } from "@/components/AppShell";
 import { MemberGate } from "@/components/MemberGate";
 import { Markdown } from "@/components/Markdown";
-import { tryCreateBrowserSupabase } from "@/lib/supabase/client";
+import { tryCreateServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 type Props = { params: { slug: string } };
 
 export default async function DepartmentPage({ params }: Props) {
-  const supabase = tryCreateBrowserSupabase();
+  noStore();
+  const supabase = tryCreateServerSupabase();
   if (!supabase) {
     return (
       <MemberGate>
