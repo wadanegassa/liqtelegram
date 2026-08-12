@@ -48,6 +48,32 @@ async function safeReply(ctx: BotContext, text: string, extra: Extra = {}) {
   }
 }
 
+/**
+ * Removing someone from a Telegram group bans them, so old invite links
+ * look "expired". Unban first, then always mint a fresh unique link.
+ */
+async function issuePaidGroupInvite(
+  telegram: BotContext["telegram"],
+  paidGroupId: number,
+  userId: number
+): Promise<string> {
+  try {
+    await telegram.unbanChatMember(paidGroupId, userId, {
+      only_if_banned: true,
+    });
+  } catch (e) {
+    console.error("unbanChatMember failed (bot needs Ban users permission)", e);
+  }
+
+  const stamp = Date.now().toString().slice(-8);
+  const link = await telegram.createChatInviteLink(paidGroupId, {
+    name: `liq-${userId}-${stamp}`.slice(0, 32),
+    member_limit: 1,
+    expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+  });
+  return link.invite_link;
+}
+
 async function isActiveMember(telegramUserId: number) {
   const supabase = createAdminSupabase();
   const { data } = await supabase
@@ -138,6 +164,7 @@ async function ensureCommands(bot: Telegraf<BotContext>) {
     { command: "status", description: "Check my payment / membership" },
     { command: "help", description: "How this bot works" },
     { command: "chatid", description: "Show this chat ID (for setup)" },
+    { command: "rejoin", description: "Get a new paid-group invite if you were removed" },
   ]);
 }
 
@@ -198,6 +225,39 @@ export function createBot() {
     await ctx.reply(
       `Chat title: ${"title" in chat ? chat.title : "private"}\nChat ID: ${chat.id}\nType: ${chat.type}`
     );
+  });
+
+  bot.command("rejoin", async (ctx) => {
+    if (ctx.chat?.type !== "private" || !ctx.from) {
+      await ctx.reply("Message me in a private chat and send /rejoin.");
+      return;
+    }
+    if (!config.paidGroupId) {
+      await ctx.reply("Paid group is not configured yet.");
+      return;
+    }
+    const member = await isActiveMember(ctx.from.id);
+    if (!member) {
+      await ctx.reply(
+        "You are not an approved member yet. Pay, send a screenshot, and wait for admin approval."
+      );
+      return;
+    }
+    try {
+      const inviteLink = await issuePaidGroupInvite(
+        ctx.telegram,
+        config.paidGroupId,
+        ctx.from.id
+      );
+      await ctx.reply(
+        `Here is a new one-time invite (valid 7 days). If you were removed before, this should work now:\n${inviteLink}`
+      );
+    } catch (e) {
+      console.error("/rejoin failed", e);
+      await ctx.reply(
+        "Could not create a new invite. Ask an admin to unban you in the paid group, then try /rejoin again."
+      );
+    }
   });
 
   // Flexible menu matching (emoji differences used to break exact hears)
@@ -391,20 +451,16 @@ export function createBot() {
 
       let inviteLink = "";
       try {
-        const link = await ctx.telegram.createChatInviteLink(
+        inviteLink = await issuePaidGroupInvite(
+          ctx.telegram,
           config.paidGroupId,
-          {
-            name: `liq-${request.telegram_user_id}`.slice(0, 32),
-            member_limit: 1,
-            expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
-          }
+          request.telegram_user_id
         );
-        inviteLink = link.invite_link;
       } catch (e) {
         console.error(e);
         await ctx.answerCbQuery("Could not create invite link");
         await ctx.reply(
-          "Failed to create invite link. Bot must be admin with invite permission in the paid group."
+          "Failed to create invite link. Make the bot admin with Invite users AND Ban users (needed to unban people who were removed)."
         );
         return;
       }
@@ -435,9 +491,7 @@ export function createBot() {
       });
 
       try {
-        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg, {
-          protect_content: true,
-        });
+        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg);
       } catch (e) {
         console.error("Failed to DM invite", e);
         await ctx.reply(
