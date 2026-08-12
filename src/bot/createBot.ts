@@ -65,11 +65,12 @@ async function issuePaidGroupInvite(
     console.error("unbanChatMember failed (bot needs Ban users permission)", e);
   }
 
+  // Always a fresh link: one use, 24 hours. Old links stay invalid.
   const stamp = Date.now().toString().slice(-8);
   const link = await telegram.createChatInviteLink(paidGroupId, {
     name: `liq-${userId}-${stamp}`.slice(0, 32),
     member_limit: 1,
-    expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+    expire_date: Math.floor(Date.now() / 1000) + 60 * 60 * 24,
   });
   return link.invite_link;
 }
@@ -250,7 +251,7 @@ export function createBot() {
         ctx.from.id
       );
       await ctx.reply(
-        `Here is a new one-time invite (valid 7 days). If you were removed before, this should work now:\n${inviteLink}`
+        `Here is a new one-time invite (valid 24 hours). Use this new link only — old links do not work:\n${inviteLink}`
       );
     } catch (e) {
       console.error("/rejoin failed", e);
