@@ -7,13 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
-const ALLOWED = new Set([
+const ALLOWED = [
   "image/png",
   "image/jpeg",
   "image/webp",
   "image/gif",
   "image/svg+xml",
-]);
+] as const;
 
 function sanitizePath(input: string, fallbackName: string): string | null {
   const raw = (input || fallbackName).trim().replace(/\\/g, "/");
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       );
     }
     const mime = file.type || "application/octet-stream";
-    if (!ALLOWED.has(mime)) {
+    if (!(ALLOWED as readonly string[]).includes(mime)) {
       return NextResponse.json(
         { error: "Only PNG, JPEG, WebP, GIF, or SVG images are allowed" },
         { status: 400 }
