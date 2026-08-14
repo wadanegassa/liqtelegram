@@ -56,7 +56,7 @@ export function AppShell({
   backHref?: string;
 }) {
   return (
-    <div className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-10 pt-5">
+    <div className="mx-auto min-h-screen w-full max-w-5xl px-3 pb-10 pt-5 sm:px-4">
       <header className="mb-6 border-b border-[var(--tg-text)] pb-4">
         <TopBar />
         {backHref ? (
