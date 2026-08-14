@@ -26,7 +26,7 @@ export function ReaderShell({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto min-h-screen w-full max-w-3xl px-4 pb-12 pt-5">
+    <div className="mx-auto min-h-screen w-full max-w-3xl px-2 pb-12 pt-4 sm:px-4 sm:pt-5">
       <header className="mb-6 border-b border-[var(--tg-text)] pb-4">
         <TopBar />
         <h1 className="mt-2 text-2xl leading-tight font-semibold tracking-tight text-[var(--tg-text)] sm:text-3xl">

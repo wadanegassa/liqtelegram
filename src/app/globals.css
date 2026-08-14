@@ -184,7 +184,7 @@ body {
 }
 
 .card-liq {
-  @apply rounded-none border p-4;
+  @apply rounded-none border p-2.5 sm:p-4;
   border-color: var(--tg-text);
   background: var(--tg-bg);
   color: var(--tg-text);
