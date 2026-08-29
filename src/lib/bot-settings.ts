@@ -22,21 +22,27 @@ export type BotSettings = {
   cbe_account_number: string;
   /** Optional CBE account holder name */
   cbe_account_name: string;
+  /** Support chat / Telegram link opened from Help */
+  support_chat_url: string;
   updated_at?: string;
 };
 
 export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "id" | "updated_at"> = {
   welcome_text: `✨ Hey {{first_name}}! Welcome to *Liq Academy* 🎓
+ሰላም {{first_name}}! ወደ *Liq Academy* እንኳን በደህና መጡ 🎓
 
-Your freshman course buddy is ready.
+Easy steps / ቀላል እርምጃዎች:
+1️⃣ Tap *Pay / ክፍያ* → copy Telebirr or CBE
+2️⃣ Pay the amount / መጠኑን ይክፈሉ
+3️⃣ Send screenshot here / ስክሪንሹት እዚህ ይላኩ
+4️⃣ Wait for approval / እስከሚፀድቅ ይጠብቁ
 
-👇 Use the menu, or tap *How to pay* to join the paid community.`,
-  payment_instructions: `💎 *Join Liq Academy*
+👇 Use the menu below.`,
 
-Pay once, send your screenshot, and get your invite 🚀
+  payment_instructions: `💎 *Pay to join / ለመቀላቀል ይክፈሉ*
 
-💰 *Amount:* {{amount}} ETB
-👤 *Account name:* {{account_name}}
+💰 Amount / መጠን: *{{amount}} ETB*
+👤 Name / ስም: *{{account_name}}*
 
 🟢 *Telebirr*
 📱 \`{{telebirr_phone}}\`
@@ -44,50 +50,70 @@ Pay once, send your screenshot, and get your invite 🚀
 🔵 *CBE Birr*
 🏦 \`{{cbe_account}}\`
 
-Tap a button below to *copy* the number, pay, then send a clear screenshot here 📸`,
-  help_text: `🧭 *How joining works*
+👇 Tap a button to *copy* the number
+ቁጥሩን ለመቅዳት ከታች ያለውን ቁልፍ ይጫኑ
 
-1️⃣ Open *How to pay* and copy Telebirr or CBE
-2️⃣ Send the amount to the account shown
-3️⃣ Send a clear *screenshot* in this private chat
-4️⃣ Admins review it ⚡
-5️⃣ If approved, you get a *one-time* invite (24h)
+Then pay and send a clear screenshot here 📸
+ከዚያ ይክፈሉና ግልጽ ስክሪንሹት እዚህ ይላኩ`,
 
-📚 Inside the paid group, open pinned course / chapter / exam links.
+  help_text: `🧭 *Help / እገዛ*
 
-Mini App tip: only use links from the paid group.`,
-  ask_screenshot_text: `📸 Awesome — send your *payment screenshot* as a photo in this chat now.
+*How to join / እንዴት ይቀላቀላሉ*
+1️⃣ *Pay / ክፍያ* → copy Telebirr or CBE
+2️⃣ Pay {{amount}} ETB to {{account_name}}
+3️⃣ Send payment *screenshot* in this chat
+4️⃣ Admin reviews → you get invite link (24h)
 
-Make sure the amount, name, and success status are visible ✨`,
-  proof_received_text: `✅ Got it! Your proof is in the review queue ⏳
+📚 After joining: open pinned lesson links in the paid group only.
+ቡድኑ ውስጥ ከተሰቀሉት ሊንኮች ብቻ ይጠቀሙ።
 
-Hang tight — an admin will check it soon.
-You can tap *My status* anytime.`,
-  approved_text: `🎉 *Payment approved!* Welcome to Liq Academy 💚
+Need a person? Tap *Support chat / ድጋፍ* below 💬
+ሰው ከፈለጉ ከታች *Support* ይጫኑ።`,
 
-Here is your *one-time* invite (expires in 24h):
+  ask_screenshot_text: `📸 Send your *payment screenshot* as a photo now.
+አሁን የክፍያ *ስክሪንሹት* እንደ ፎቶ ይላኩ።
+
+Show amount + success clearly / መጠንና ስኬት በግልጽ ይታይ`,
+
+  proof_received_text: `✅ Received! / ተቀብለናል!
+⏳ Admin is reviewing / አድሚን እየገመገመ ነው።
+
+Check anytime with *Status / ሁኔታ*`,
+
+  approved_text: `🎉 *Approved! / ተፅድቋል!* Welcome to Liq Academy 💚
+
+One-time invite (24h) / አንድ ጊዜ የሚያገለግል ሊንክ:
 {{invite_link}}
 
-Open the paid group, then use the pinned lesson links to study 📚✨`,
-  rejected_text: `😅 That proof was rejected.
+Join the group, then open pinned lesson links 📚
+ቡድኑን ይቀላቀሉ፣ ከዚያ የተሰቀሉትን ሊንኮች ይክፈቱ`,
 
-Please send a *clearer screenshot* of a successful payment (amount + name visible), then try again.`,
-  status_member_text: `✅ You're an approved member 🌟
+  rejected_text: `😅 Proof rejected / ማስረጃው አልተቀበለም።
 
-Use the pinned links inside the paid group to open lessons.
-Lost access? Send /rejoin for a fresh invite.`,
-  status_pending_text: `⏳ Your proof is waiting for admin review.
+Send a clearer successful-payment screenshot (amount + name visible).
+ግልጽ የተሳካ ክፍያ ስክሪንሹት እንደገና ይላኩ።`,
 
-We'll message you as soon as it's checked ✨`,
-  status_none_text: `👋 No payment proof yet.
+  status_member_text: `✅ You are a member / አባል ነዎት 🌟
 
-Tap *How to pay*, copy Telebirr or CBE, pay, then send a screenshot here 📸`,
+Use pinned links in the paid group.
+Lost access? / አገናኝ ጠፋ? → /rejoin`,
+
+  status_pending_text: `⏳ Pending review / በመጠባበቅ ላይ
+
+We will message you after admin checks it.
+አድሚን ካረጋገጠ በኋላ እንልክልዎታለን።`,
+
+  status_none_text: `👋 No payment yet / ገና አልከፈሉም
+
+Tap *Pay / ክፍያ* → copy number → pay → send screenshot 📸`,
+
   payment_amount: "UPDATE_ME",
   payment_account_name: "UPDATE_ME",
   telebirr_phone: "UPDATE_ME",
   telebirr_name: "Telebirr",
   cbe_account_number: "UPDATE_ME",
   cbe_account_name: "CBE Birr",
+  support_chat_url: "https://t.me/Liq_Academy_bot",
 };
 
 export function renderBotText(
@@ -109,5 +135,15 @@ export function paymentVars(settings: BotSettings): Record<string, string> {
     telebirr_name: settings.telebirr_name || "Telebirr",
     cbe_account: settings.cbe_account_number || "UPDATE_ME",
     cbe_account_name: settings.cbe_account_name || "CBE Birr",
+    support_url: (settings.support_chat_url || "").trim(),
   };
+}
+
+export function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value.trim());
+    return u.protocol === "https:" || u.protocol === "http:";
+  } catch {
+    return false;
+  }
 }

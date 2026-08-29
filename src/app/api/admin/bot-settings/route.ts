@@ -20,6 +20,7 @@ const FIELDS = [
   "telebirr_name",
   "cbe_account_number",
   "cbe_account_name",
+  "support_chat_url",
 ] as const;
 
 export async function GET() {

@@ -45,6 +45,7 @@ export async function getBotSettings(): Promise<BotSettings> {
       telebirr_name: pick(row, "telebirr_name"),
       cbe_account_number: pick(row, "cbe_account_number"),
       cbe_account_name: pick(row, "cbe_account_name"),
+      support_chat_url: pick(row, "support_chat_url"),
       updated_at:
         typeof row.updated_at === "string" ? row.updated_at : undefined,
     };

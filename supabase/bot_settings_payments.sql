@@ -1,5 +1,5 @@
--- Add Telebirr + CBE payment fields for copyable bot buttons.
--- Run in Supabase → SQL Editor (safe to re-run).
+-- Support chat URL for Help button + payment fields (safe to re-run).
+-- Run in Supabase → SQL Editor.
 
 alter table public.bot_settings
   add column if not exists payment_amount text not null default 'UPDATE_ME';
@@ -19,6 +19,9 @@ alter table public.bot_settings
 alter table public.bot_settings
   add column if not exists cbe_account_name text not null default 'CBE Birr';
 
+alter table public.bot_settings
+  add column if not exists support_chat_url text not null default 'https://t.me/Liq_Academy_bot';
+
 update public.bot_settings
 set
   payment_amount = coalesce(nullif(payment_amount, ''), 'UPDATE_ME'),
@@ -27,5 +30,6 @@ set
   telebirr_name = coalesce(nullif(telebirr_name, ''), 'Telebirr'),
   cbe_account_number = coalesce(nullif(cbe_account_number, ''), 'UPDATE_ME'),
   cbe_account_name = coalesce(nullif(cbe_account_name, ''), 'CBE Birr'),
+  support_chat_url = coalesce(nullif(support_chat_url, ''), 'https://t.me/Liq_Academy_bot'),
   updated_at = now()
 where id = 1;

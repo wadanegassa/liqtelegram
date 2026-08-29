@@ -1021,6 +1021,11 @@ function BotSettingsAdmin({
       label: "CBE label",
       placeholder: "CBE Birr",
     },
+    {
+      key: "support_chat_url",
+      label: "Support chat link (Help button opens this)",
+      placeholder: "https://t.me/your_support_username",
+    },
   ];
 
   const textFields: Array<{
@@ -1062,11 +1067,11 @@ function BotSettingsAdmin({
           Bot texts & payment details
         </h3>
         <p className="mt-1 text-sm text-[var(--tg-hint)]">
-          Students get Telebirr + CBE copy buttons from the fields below.
-          Message texts support Markdown (*bold*) and placeholders like{" "}
+          Students see English + Amharic by default. Edit texts anytime. Help
+          opens your Support chat link. Placeholders:{" "}
           <code>{"{{first_name}}"}</code>, <code>{"{{amount}}"}</code>,{" "}
           <code>{"{{telebirr_phone}}"}</code>, <code>{"{{cbe_account}}"}</code>,{" "}
-          <code>{"{{invite_link}}"}</code>.
+          <code>{"{{invite_link}}"}</code>, <code>{"{{support_url}}"}</code>.
         </p>
         {hint ? (
           <p className="mt-2 text-sm text-amber-800">{hint}</p>
@@ -1074,9 +1079,10 @@ function BotSettingsAdmin({
       </div>
 
       <div className="space-y-3 border border-[var(--tg-text)] p-3">
-        <h4 className="font-semibold">💚💙 Payment methods (editable)</h4>
+        <h4 className="font-semibold">💚💙 Payment + support link</h4>
         <p className="text-xs text-[var(--tg-hint)]">
-          These powers the copy buttons in Telegram. Run{" "}
+          Copy buttons use Telebirr/CBE fields. Help uses Support chat link
+          (https://t.me/...). Run{" "}
           <code>supabase/bot_settings_payments.sql</code> once if save fails.
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
