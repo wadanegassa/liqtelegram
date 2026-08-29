@@ -31,8 +31,8 @@ function displayName(ctx: BotContext) {
 
 function mainMenu() {
   return Markup.keyboard([
-    ["💚 Pay / ክፍያ", "📸 I paid / ከፈልኩ"],
-    ["📊 Status / ሁኔታ", "✨ Help / እገዛ"],
+    ["💚 How to pay", "📸 I already paid"],
+    ["📊 My status", "✨ Help"],
   ])
     .resize()
     .persistent();
@@ -49,7 +49,7 @@ function paymentInlineKeyboard(settings: BotSettings) {
   > = [];
 
   if (telebirr && telebirr !== "UPDATE_ME") {
-    rows.push([copyButton("💚 Copy Telebirr / ቴሌብር ቅዳ", telebirr)]);
+    rows.push([copyButton("💚 Copy Telebirr phone", telebirr)]);
   } else {
     rows.push([
       Markup.button.callback("💚 Telebirr (set in admin)", "pay:hint:telebirr"),
@@ -57,7 +57,7 @@ function paymentInlineKeyboard(settings: BotSettings) {
   }
 
   if (cbe && cbe !== "UPDATE_ME") {
-    rows.push([copyButton("💙 Copy CBE / ሲቢኢ ቅዳ", cbe)]);
+    rows.push([copyButton("💙 Copy CBE account", cbe)]);
   } else {
     rows.push([
       Markup.button.callback("💙 CBE (set in admin)", "pay:hint:cbe"),
@@ -65,10 +65,7 @@ function paymentInlineKeyboard(settings: BotSettings) {
   }
 
   rows.push([
-    Markup.button.callback(
-      "📸 I paid — send photo / ስክሪንሹት ላክ",
-      "pay:ask_proof"
-    ),
+    Markup.button.callback("📸 I paid — send screenshot", "pay:ask_proof"),
   ]);
 
   return Markup.inlineKeyboard(rows);
@@ -84,17 +81,11 @@ function helpInlineKeyboard(settings: BotSettings) {
 
   const support = (settings.support_chat_url || "").trim();
   if (isHttpUrl(support)) {
-    rows.push([
-      Markup.button.url("💬 Support chat / የድጋፍ ቻት", support),
-    ]);
+    rows.push([Markup.button.url("💬 Support chat", support)]);
   }
 
-  rows.push([
-    Markup.button.callback("💚 Pay now / አሁን ክፈል", "pay:show"),
-  ]);
-  rows.push([
-    Markup.button.callback("📊 My status / ሁኔታዬ", "pay:status"),
-  ]);
+  rows.push([Markup.button.callback("💚 Pay now", "pay:show")]);
+  rows.push([Markup.button.callback("📊 My status", "pay:status")]);
 
   return Markup.inlineKeyboard(rows);
 }
@@ -106,12 +97,12 @@ function statusInlineKeyboard(settings: BotSettings) {
       | ReturnType<typeof Markup.button.callback>
     >
   > = [
-    [Markup.button.callback("💚 Pay / ክፍያ", "pay:show")],
-    [Markup.button.callback("✨ Help / እገዛ", "pay:help")],
+    [Markup.button.callback("💚 How to pay", "pay:show")],
+    [Markup.button.callback("✨ Help", "pay:help")],
   ];
   const support = (settings.support_chat_url || "").trim();
   if (isHttpUrl(support)) {
-    rows.push([Markup.button.url("💬 Support / ድጋፍ", support)]);
+    rows.push([Markup.button.url("💬 Support chat", support)]);
   }
   return Markup.inlineKeyboard(rows);
 }
@@ -264,14 +255,14 @@ async function replyStatus(
 
 async function ensureCommands(bot: Telegraf<BotContext>) {
   await bot.telegram.setMyCommands([
-    { command: "start", description: "✨ Start / ጀምር — join Liq Academy" },
-    { command: "pay", description: "💚 Pay / ክፍያ — Telebirr & CBE" },
-    { command: "status", description: "📊 Status / ሁኔታ" },
-    { command: "help", description: "🧭 Help / እገዛ + support chat" },
+    { command: "start", description: "✨ Start — join Liq Academy" },
+    { command: "pay", description: "💚 Telebirr & CBE payment details" },
+    { command: "status", description: "📊 Check payment / membership" },
+    { command: "help", description: "🧭 Help + support chat" },
     { command: "chatid", description: "Show this chat ID (for setup)" },
     {
       command: "rejoin",
-      description: "🔁 Rejoin / እንደገና ግባ",
+      description: "🔁 Get a new paid-group invite if removed",
     },
   ]);
 }
@@ -377,8 +368,8 @@ export function createBot() {
     }
   });
 
-  // Match bilingual menu buttons (avoid catching /commands)
-  bot.hears(/^(💚\s*)?(Pay\s*\/\s*ክፍያ|How to pay)\s*$/i, async (ctx) => {
+  // Match English menu buttons (+ older bilingual labels if still on keyboard)
+  bot.hears(/^(💚\s*)?(How to pay|Pay\s*\/\s*ክፍያ)\s*$/i, async (ctx) => {
     try {
       await sendPaymentInfo(ctx, config);
     } catch (e) {
@@ -387,7 +378,7 @@ export function createBot() {
   });
 
   bot.hears(
-    /^(📸\s*)?(I paid\s*\/\s*ከፈልኩ|I already paid)\s*$/i,
+    /^(📸\s*)?(I already paid|I paid\s*\/\s*ከፈልኩ)\s*$/i,
     async (ctx) => {
       await withTyping(ctx);
       const settings = await getBotSettings();
@@ -396,16 +387,16 @@ export function createBot() {
     }
   );
 
-  bot.hears(/^(📊\s*)?(Status\s*\/\s*ሁኔታ|My status)\s*$/i, async (ctx) => {
+  bot.hears(/^(📊\s*)?(My status|Status\s*\/\s*ሁኔታ)\s*$/i, async (ctx) => {
     await replyStatus(ctx, config);
   });
 
-  bot.hears(/^(✨\s*)?(Help\s*\/\s*እገዛ|Help)\s*$/i, async (ctx) => {
+  bot.hears(/^(✨\s*)?(Help|Help\s*\/\s*እገዛ)\s*$/i, async (ctx) => {
     await sendHelp(ctx, config);
   });
 
   bot.action("pay:ask_proof", async (ctx) => {
-    await ctx.answerCbQuery("Send screenshot / ስክሪንሹት ይላኩ 📸");
+    await ctx.answerCbQuery("Send your screenshot as a photo 📸");
     const settings = await getBotSettings();
     const vars = baseVars(config, ctx.from?.first_name, settings);
     await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
@@ -428,7 +419,7 @@ export function createBot() {
 
   bot.action(/^pay:hint:(telebirr|cbe)$/, async (ctx) => {
     await ctx.answerCbQuery(
-      "Admin still needs to set this number / አድሚን ቁጥሩን ገና አላስገባም።",
+      "Admin still needs to set this number in the portal.",
       { show_alert: true }
     );
   });

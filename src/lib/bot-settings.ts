@@ -32,7 +32,7 @@ export const DEFAULT_BOT_SETTINGS: Omit<BotSettings, "id" | "updated_at"> = {
 ሰላም {{first_name}}! ወደ *Liq Academy* እንኳን በደህና መጡ 🎓
 
 Easy steps / ቀላል እርምጃዎች:
-1️⃣ Tap *Pay / ክፍያ* → copy Telebirr or CBE
+1️⃣ Tap *How to pay* → copy Telebirr or CBE
 2️⃣ Pay the amount / መጠኑን ይክፈሉ
 3️⃣ Send screenshot here / ስክሪንሹት እዚህ ይላኩ
 4️⃣ Wait for approval / እስከሚፀድቅ ይጠብቁ
@@ -59,7 +59,7 @@ Then pay and send a clear screenshot here 📸
   help_text: `🧭 *Help / እገዛ*
 
 *How to join / እንዴት ይቀላቀላሉ*
-1️⃣ *Pay / ክፍያ* → copy Telebirr or CBE
+1️⃣ Tap *How to pay* → copy Telebirr or CBE
 2️⃣ Pay {{amount}} ETB to {{account_name}}
 3️⃣ Send payment *screenshot* in this chat
 4️⃣ Admin reviews → you get invite link (24h)
@@ -67,8 +67,8 @@ Then pay and send a clear screenshot here 📸
 📚 After joining: open pinned lesson links in the paid group only.
 ቡድኑ ውስጥ ከተሰቀሉት ሊንኮች ብቻ ይጠቀሙ።
 
-Need a person? Tap *Support chat / ድጋፍ* below 💬
-ሰው ከፈለጉ ከታች *Support* ይጫኑ።`,
+Need a person? Tap *Support chat* below 💬
+ሰው ከፈለጉ ከታች *Support chat* ይጫኑ።`,
 
   ask_screenshot_text: `📸 Send your *payment screenshot* as a photo now.
 አሁን የክፍያ *ስክሪንሹት* እንደ ፎቶ ይላኩ።
@@ -78,7 +78,7 @@ Show amount + success clearly / መጠንና ስኬት በግልጽ ይታይ`,
   proof_received_text: `✅ Received! / ተቀብለናል!
 ⏳ Admin is reviewing / አድሚን እየገመገመ ነው።
 
-Check anytime with *Status / ሁኔታ*`,
+Check anytime with *My status*`,
 
   approved_text: `🎉 *Approved! / ተፅድቋል!* Welcome to Liq Academy 💚
 
@@ -105,7 +105,7 @@ We will message you after admin checks it.
 
   status_none_text: `👋 No payment yet / ገና አልከፈሉም
 
-Tap *Pay / ክፍያ* → copy number → pay → send screenshot 📸`,
+Tap *How to pay* → copy number → pay → send screenshot 📸`,
 
   payment_amount: "UPDATE_ME",
   payment_account_name: "UPDATE_ME",
