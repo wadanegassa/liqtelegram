@@ -213,42 +213,47 @@ async function replyStatus(
   await withTyping(ctx);
   const settings = await getBotSettings();
   const vars = baseVars(config, ctx.from.first_name, settings);
-  const member = await isActiveMember(ctx.from.id);
-  if (member) {
+  const userId = ctx.from.id;
+
+  const supabase = createAdminSupabase();
+  const { data: latestRows, error: latestError } = await supabase
+    .from("payment_requests")
+    .select("status, created_at")
+    .eq("telegram_user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (latestError) {
+    console.error("status payment lookup failed", latestError);
+  }
+
+  const latest = latestRows?.[0] ?? null;
+
+  // Always trust the latest payment request first.
+  // Pending must never show as approved, even if an older membership row exists.
+  if (latest?.status === "pending") {
+    await safeReply(ctx, renderBotText(settings.status_pending_text, vars), {
+      ...statusInlineKeyboard(settings),
+    });
+    return;
+  }
+
+  if (latest?.status === "rejected") {
+    await safeReply(ctx, renderBotText(settings.rejected_text, vars), {
+      ...statusInlineKeyboard(settings),
+    });
+    return;
+  }
+
+  const member = await isActiveMember(userId);
+  if (member || latest?.status === "approved") {
     await safeReply(ctx, renderBotText(settings.status_member_text, vars), {
       ...statusInlineKeyboard(settings),
     });
     return;
   }
 
-  const supabase = createAdminSupabase();
-  const { data: latest } = await supabase
-    .from("payment_requests")
-    .select("status")
-    .eq("telegram_user_id", ctx.from.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (!latest) {
-    await safeReply(ctx, renderBotText(settings.status_none_text, vars), {
-      ...statusInlineKeyboard(settings),
-    });
-    return;
-  }
-  if (latest.status === "pending") {
-    await safeReply(ctx, renderBotText(settings.status_pending_text, vars), {
-      ...statusInlineKeyboard(settings),
-    });
-    return;
-  }
-  if (latest.status === "rejected") {
-    await safeReply(ctx, renderBotText(settings.rejected_text, vars), {
-      ...statusInlineKeyboard(settings),
-    });
-    return;
-  }
-  await safeReply(ctx, renderBotText(settings.status_member_text, vars), {
+  await safeReply(ctx, renderBotText(settings.status_none_text, vars), {
     ...statusInlineKeyboard(settings),
   });
 }
