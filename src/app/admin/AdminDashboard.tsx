@@ -102,11 +102,13 @@ export function AdminDashboard() {
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setLoginError("Wrong password");
+        setLoginError(json.error || "Wrong password");
         return;
       }
       setAuthed(true);
@@ -118,7 +120,10 @@ export function AdminDashboard() {
   }
 
   async function onLogout() {
-    await fetch("/api/admin/logout", { method: "POST" });
+    await fetch("/api/admin/logout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
     setAuthed(false);
   }
 
@@ -132,12 +137,21 @@ export function AdminDashboard() {
     try {
       const res = await fetch(url, {
         method,
+        credentials: "same-origin",
         headers: body ? { "Content-Type": "application/json" } : undefined,
         body: body ? JSON.stringify(body) : undefined,
       });
       const json = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        setAuthed(false);
+        setMessage("Session expired — please log in again, then save.");
+        return false;
+      }
       if (!res.ok) {
-        setMessage(json.error || "Request failed");
+        setMessage(
+          [json.error, json.hint].filter(Boolean).join(" — ") ||
+            "Request failed"
+        );
         return false;
       }
       setMessage("Saved");
@@ -957,9 +971,13 @@ function BotSettingsAdmin({
   });
 
   useEffect(() => {
-    fetch("/api/admin/bot-settings")
-      .then((r) => r.json())
-      .then((data) => {
+    fetch("/api/admin/bot-settings", { credentials: "same-origin" })
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (r.status === 401) {
+          setHint("Session expired — log out and log in again, then save.");
+          return;
+        }
         if (data.hint) setHint(data.hint);
         if (data.error && !data.settings) setHint(data.error);
         if (data.settings) {

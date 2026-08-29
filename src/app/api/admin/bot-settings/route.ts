@@ -63,7 +63,13 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   if (!(await requireAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      {
+        error: "Unauthorized",
+        hint: "Log out, log in again at /admin, then save. Also confirm ADMIN_PASSWORD and ADMIN_SESSION_SECRET are set on Vercel.",
+      },
+      { status: 401 }
+    );
   }
 
   const body = await request.json().catch(() => ({}));

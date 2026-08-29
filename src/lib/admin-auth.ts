@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 
 const COOKIE = "liq_admin_session";
 
@@ -7,6 +8,17 @@ function secretKey() {
   const secret = process.env.ADMIN_SESSION_SECRET;
   if (!secret) throw new Error("ADMIN_SESSION_SECRET is not set");
   return new TextEncoder().encode(secret);
+}
+
+function cookieOptions(maxAge: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    // Always secure on Vercel/HTTPS so the browser keeps the session cookie.
+    secure: process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL),
+    path: "/",
+    maxAge,
+  };
 }
 
 export async function createAdminSessionToken(): Promise<string> {
@@ -29,29 +41,31 @@ export async function verifyAdminSessionToken(
   }
 }
 
+/** Prefer attaching the cookie to the Route Handler response (reliable on Vercel). */
+export function attachAdminSessionCookie(res: NextResponse, token: string) {
+  res.cookies.set(COOKIE, token, cookieOptions(60 * 60 * 24 * 7));
+}
+
+export function clearAdminSessionCookieOnResponse(res: NextResponse) {
+  res.cookies.set(COOKIE, "", cookieOptions(0));
+}
+
 export async function setAdminSessionCookie(token: string) {
-  cookies().set(COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
+  cookies().set(COOKIE, token, cookieOptions(60 * 60 * 24 * 7));
 }
 
 export async function clearAdminSessionCookie() {
-  cookies().set(COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 0,
-  });
+  cookies().set(COOKIE, "", cookieOptions(0));
 }
 
 export async function requireAdmin(): Promise<boolean> {
-  const token = cookies().get(COOKIE)?.value;
-  return verifyAdminSessionToken(token);
+  try {
+    const token = cookies().get(COOKIE)?.value;
+    return verifyAdminSessionToken(token);
+  } catch {
+    // Missing ADMIN_SESSION_SECRET (or cookie read failure) → treat as logged out
+    return false;
+  }
 }
 
 export function checkAdminPassword(password: string): boolean {
