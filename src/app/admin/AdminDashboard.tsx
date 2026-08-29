@@ -40,11 +40,15 @@ export function AdminDashboard() {
 
   const refresh = useCallback(async () => {
     const [cRes, dRes] = await Promise.all([
-      fetch("/api/admin/courses"),
-      fetch("/api/admin/departments"),
+      fetch("/api/admin/courses", { credentials: "same-origin" }),
+      fetch("/api/admin/departments", { credentials: "same-origin" }),
     ]);
     if (cRes.status === 401 || dRes.status === 401) {
       setAuthed(false);
+      return;
+    }
+    if (!cRes.ok || !dRes.ok) {
+      setMessage("Could not load courses/departments. Refresh and try again.");
       return;
     }
     const cJson = await cRes.json();
@@ -63,30 +67,66 @@ export function AdminDashboard() {
       return;
     }
     const [chRes, exRes] = await Promise.all([
-      fetch(`/api/admin/chapters?course_id=${courseId}`),
-      fetch(`/api/admin/exams?course_id=${courseId}`),
+      fetch(`/api/admin/chapters?course_id=${courseId}`, {
+        credentials: "same-origin",
+      }),
+      fetch(`/api/admin/exams?course_id=${courseId}`, {
+        credentials: "same-origin",
+      }),
     ]);
-    const chJson = await chRes.json();
-    const exJson = await exRes.json();
+    const chJson = await chRes.json().catch(() => ({}));
+    const exJson = await exRes.json().catch(() => ({}));
     setChapters(chJson.chapters || []);
     setExams(exJson.exams || []);
   }, []);
 
   useEffect(() => {
-    fetch("/api/setup")
+    let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+
+    fetch("/api/setup", { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (!data.ready) setSetupHint(data.setup || data.error || "Database not ready");
+        if (cancelled) return;
+        if (!data.ready)
+          setSetupHint(data.setup || data.error || "Database not ready");
       })
-      .catch(() => setSetupHint("Could not reach setup check"));
+      .catch(() => {
+        if (!cancelled)
+          setSetupHint(
+            "Could not reach the server. Check your connection, then refresh."
+          );
+      });
 
-    fetch("/api/admin/me")
+    fetch("/api/admin/me", {
+      credentials: "same-origin",
+      signal: controller.signal,
+    })
       .then((r) => r.json())
       .then(async (data) => {
+        if (cancelled) return;
         setAuthed(Boolean(data.authenticated));
         if (data.authenticated) await refresh();
       })
-      .finally(() => setChecking(false));
+      .catch(() => {
+        if (!cancelled) {
+          setAuthed(false);
+          setLoginError(
+            "Could not check login session. Refresh the page or try again in a minute."
+          );
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (!cancelled) setChecking(false);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      window.clearTimeout(timeout);
+    };
   }, [refresh]);
 
   useEffect(() => {
