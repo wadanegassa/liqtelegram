@@ -13,6 +13,12 @@ create table if not exists public.bot_settings (
   status_member_text text not null default '',
   status_pending_text text not null default '',
   status_none_text text not null default '',
+  payment_amount text not null default 'UPDATE_ME',
+  payment_account_name text not null default 'UPDATE_ME',
+  telebirr_phone text not null default 'UPDATE_ME',
+  telebirr_name text not null default 'Telebirr',
+  cbe_account_number text not null default 'UPDATE_ME',
+  cbe_account_name text not null default 'CBE Birr',
   updated_at timestamptz not null default now()
 );
 

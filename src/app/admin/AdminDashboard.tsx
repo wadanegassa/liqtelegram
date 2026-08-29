@@ -964,31 +964,15 @@ function BotSettingsAdmin({
         if (data.error && !data.settings) setHint(data.error);
         if (data.settings) {
           setForm({
-            welcome_text: data.settings.welcome_text || DEFAULT_BOT_SETTINGS.welcome_text,
-            payment_instructions:
-              data.settings.payment_instructions ||
-              DEFAULT_BOT_SETTINGS.payment_instructions,
-            help_text: data.settings.help_text || DEFAULT_BOT_SETTINGS.help_text,
-            ask_screenshot_text:
-              data.settings.ask_screenshot_text ||
-              DEFAULT_BOT_SETTINGS.ask_screenshot_text,
-            proof_received_text:
-              data.settings.proof_received_text ||
-              DEFAULT_BOT_SETTINGS.proof_received_text,
-            approved_text:
-              data.settings.approved_text || DEFAULT_BOT_SETTINGS.approved_text,
-            rejected_text:
-              data.settings.rejected_text || DEFAULT_BOT_SETTINGS.rejected_text,
-            status_member_text:
-              data.settings.status_member_text ||
-              DEFAULT_BOT_SETTINGS.status_member_text,
-            status_pending_text:
-              data.settings.status_pending_text ||
-              DEFAULT_BOT_SETTINGS.status_pending_text,
-            status_none_text:
-              data.settings.status_none_text ||
-              DEFAULT_BOT_SETTINGS.status_none_text,
-          });
+            ...DEFAULT_BOT_SETTINGS,
+            ...Object.fromEntries(
+              Object.keys(DEFAULT_BOT_SETTINGS).map((key) => [
+                key,
+                data.settings[key] ??
+                  DEFAULT_BOT_SETTINGS[key as keyof typeof DEFAULT_BOT_SETTINGS],
+              ])
+            ),
+          } as Omit<BotSettings, "id" | "updated_at">);
         }
       })
       .finally(() => setLoading(false));
@@ -1002,7 +986,44 @@ function BotSettingsAdmin({
     return <p className="text-sm text-[var(--tg-hint)]">Loading bot texts…</p>;
   }
 
-  const fields: Array<{
+  const paymentFields: Array<{
+    key: keyof typeof form;
+    label: string;
+    placeholder?: string;
+  }> = [
+    {
+      key: "payment_amount",
+      label: "Amount (ETB)",
+      placeholder: "500",
+    },
+    {
+      key: "payment_account_name",
+      label: "Account name (shown to students)",
+      placeholder: "Liq Academy",
+    },
+    {
+      key: "telebirr_phone",
+      label: "Telebirr phone (copy button)",
+      placeholder: "09xxxxxxxx",
+    },
+    {
+      key: "telebirr_name",
+      label: "Telebirr label",
+      placeholder: "Telebirr",
+    },
+    {
+      key: "cbe_account_number",
+      label: "CBE account number (copy button)",
+      placeholder: "1000xxxxxxx",
+    },
+    {
+      key: "cbe_account_name",
+      label: "CBE label",
+      placeholder: "CBE Birr",
+    },
+  ];
+
+  const textFields: Array<{
     key: keyof typeof form;
     label: string;
     rows?: number;
@@ -1010,7 +1031,8 @@ function BotSettingsAdmin({
     { key: "welcome_text", label: "Welcome message (/start)", rows: 5 },
     {
       key: "payment_instructions",
-      label: "Payment instructions (accounts, amount, methods)",
+      label:
+        "Payment message (use {{amount}}, {{account_name}}, {{telebirr_phone}}, {{cbe_account}})",
       rows: 12,
     },
     { key: "help_text", label: "Help text", rows: 8 },
@@ -1036,18 +1058,42 @@ function BotSettingsAdmin({
       }}
     >
       <div>
-        <h3 className="font-display text-lg font-semibold">Bot texts & payment details</h3>
+        <h3 className="font-display text-lg font-semibold">
+          Bot texts & payment details
+        </h3>
         <p className="mt-1 text-sm text-[var(--tg-hint)]">
-          Edit what students see in Telegram. Supports Markdown (*bold*). Placeholders:{" "}
-          <code>{"{{first_name}}"}</code>, <code>{"{{invite_link}}"}</code>.
-          Do not share Mini App home links — students use course/chapter/exam links from the paid group.
+          Students get Telebirr + CBE copy buttons from the fields below.
+          Message texts support Markdown (*bold*) and placeholders like{" "}
+          <code>{"{{first_name}}"}</code>, <code>{"{{amount}}"}</code>,{" "}
+          <code>{"{{telebirr_phone}}"}</code>, <code>{"{{cbe_account}}"}</code>,{" "}
+          <code>{"{{invite_link}}"}</code>.
         </p>
         {hint ? (
           <p className="mt-2 text-sm text-amber-800">{hint}</p>
         ) : null}
       </div>
 
-      {fields.map((field) => (
+      <div className="space-y-3 border border-[var(--tg-text)] p-3">
+        <h4 className="font-semibold">💚💙 Payment methods (editable)</h4>
+        <p className="text-xs text-[var(--tg-hint)]">
+          These powers the copy buttons in Telegram. Run{" "}
+          <code>supabase/bot_settings_payments.sql</code> once if save fails.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {paymentFields.map((field) => (
+            <Field key={field.key} label={field.label}>
+              <input
+                className="input-liq"
+                value={form[field.key]}
+                placeholder={field.placeholder}
+                onChange={(e) => setField(field.key, e.target.value)}
+              />
+            </Field>
+          ))}
+        </div>
+      </div>
+
+      {textFields.map((field) => (
         <Field key={field.key} label={field.label}>
           <textarea
             className="input-liq min-h-24 font-mono text-xs"
@@ -1064,3 +1110,4 @@ function BotSettingsAdmin({
     </form>
   );
 }
+

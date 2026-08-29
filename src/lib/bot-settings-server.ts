@@ -4,6 +4,15 @@ import {
   type BotSettings,
 } from "@/lib/bot-settings";
 
+function pick(
+  data: Record<string, unknown> | null,
+  key: keyof typeof DEFAULT_BOT_SETTINGS
+): string {
+  const value = data?.[key];
+  if (typeof value === "string" && value.trim()) return value;
+  return DEFAULT_BOT_SETTINGS[key];
+}
+
 export async function getBotSettings(): Promise<BotSettings> {
   try {
     const supabase = createAdminSupabase();
@@ -17,25 +26,27 @@ export async function getBotSettings(): Promise<BotSettings> {
       return { id: 1, ...DEFAULT_BOT_SETTINGS };
     }
 
+    const row = data as Record<string, unknown>;
     return {
       id: 1,
-      welcome_text: data.welcome_text || DEFAULT_BOT_SETTINGS.welcome_text,
-      payment_instructions:
-        data.payment_instructions || DEFAULT_BOT_SETTINGS.payment_instructions,
-      help_text: data.help_text || DEFAULT_BOT_SETTINGS.help_text,
-      ask_screenshot_text:
-        data.ask_screenshot_text || DEFAULT_BOT_SETTINGS.ask_screenshot_text,
-      proof_received_text:
-        data.proof_received_text || DEFAULT_BOT_SETTINGS.proof_received_text,
-      approved_text: data.approved_text || DEFAULT_BOT_SETTINGS.approved_text,
-      rejected_text: data.rejected_text || DEFAULT_BOT_SETTINGS.rejected_text,
-      status_member_text:
-        data.status_member_text || DEFAULT_BOT_SETTINGS.status_member_text,
-      status_pending_text:
-        data.status_pending_text || DEFAULT_BOT_SETTINGS.status_pending_text,
-      status_none_text:
-        data.status_none_text || DEFAULT_BOT_SETTINGS.status_none_text,
-      updated_at: data.updated_at,
+      welcome_text: pick(row, "welcome_text"),
+      payment_instructions: pick(row, "payment_instructions"),
+      help_text: pick(row, "help_text"),
+      ask_screenshot_text: pick(row, "ask_screenshot_text"),
+      proof_received_text: pick(row, "proof_received_text"),
+      approved_text: pick(row, "approved_text"),
+      rejected_text: pick(row, "rejected_text"),
+      status_member_text: pick(row, "status_member_text"),
+      status_pending_text: pick(row, "status_pending_text"),
+      status_none_text: pick(row, "status_none_text"),
+      payment_amount: pick(row, "payment_amount"),
+      payment_account_name: pick(row, "payment_account_name"),
+      telebirr_phone: pick(row, "telebirr_phone"),
+      telebirr_name: pick(row, "telebirr_name"),
+      cbe_account_number: pick(row, "cbe_account_number"),
+      cbe_account_name: pick(row, "cbe_account_name"),
+      updated_at:
+        typeof row.updated_at === "string" ? row.updated_at : undefined,
     };
   } catch {
     return { id: 1, ...DEFAULT_BOT_SETTINGS };

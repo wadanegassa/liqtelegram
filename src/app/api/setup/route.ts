@@ -39,7 +39,7 @@ export async function GET() {
       setup: !contentReady
         ? "Run supabase/schema.sql in Supabase SQL Editor."
         : !botReady
-          ? "Run supabase/payments.sql and supabase/bot_settings.sql in Supabase SQL Editor."
+          ? "Run supabase/payments.sql, supabase/bot_settings.sql, and supabase/bot_settings_payments.sql in Supabase SQL Editor."
           : null,
       botEnv: {
         adminGroup: Boolean(process.env.TELEGRAM_ADMIN_GROUP_ID),

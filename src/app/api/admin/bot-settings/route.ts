@@ -14,6 +14,12 @@ const FIELDS = [
   "status_member_text",
   "status_pending_text",
   "status_none_text",
+  "payment_amount",
+  "payment_account_name",
+  "telebirr_phone",
+  "telebirr_name",
+  "cbe_account_number",
+  "cbe_account_name",
 ] as const;
 
 export async function GET() {
@@ -32,22 +38,24 @@ export async function GET() {
     if (error) {
       return NextResponse.json({
         settings: { id: 1, ...DEFAULT_BOT_SETTINGS },
-        hint: "Run supabase/bot_settings.sql in Supabase SQL Editor, then save again.",
+        hint: "Run supabase/bot_settings.sql and supabase/bot_settings_payments.sql in Supabase SQL Editor, then save again.",
         error: error.message,
       });
     }
 
     return NextResponse.json({
-      settings: data || { id: 1, ...DEFAULT_BOT_SETTINGS },
+      settings: data
+        ? { ...DEFAULT_BOT_SETTINGS, ...data, id: 1 }
+        : { id: 1, ...DEFAULT_BOT_SETTINGS },
       hint: data
         ? null
-        : "No settings row yet — save once after running supabase/bot_settings.sql.",
+        : "No settings row yet — save once after running the bot_settings SQL files.",
     });
   } catch (e) {
     return NextResponse.json({
       settings: { id: 1, ...DEFAULT_BOT_SETTINGS },
       error: e instanceof Error ? e.message : "Failed",
-      hint: "Run supabase/bot_settings.sql in Supabase SQL Editor.",
+      hint: "Run supabase/bot_settings.sql and supabase/bot_settings_payments.sql in Supabase SQL Editor.",
     });
   }
 }
@@ -81,7 +89,7 @@ export async function PUT(request: Request) {
     return NextResponse.json(
       {
         error: error.message,
-        hint: "Run supabase/bot_settings.sql in Supabase SQL Editor.",
+        hint: "Run supabase/bot_settings.sql and supabase/bot_settings_payments.sql in Supabase SQL Editor.",
       },
       { status: 500 }
     );

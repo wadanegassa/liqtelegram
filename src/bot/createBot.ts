@@ -3,10 +3,23 @@ import type { Update } from "telegraf/types";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { getBotConfig } from "@/bot/config";
 import { getBotSettings } from "@/lib/bot-settings-server";
-import { renderBotText } from "@/lib/bot-settings";
+import {
+  paymentVars,
+  renderBotText,
+  type BotSettings,
+} from "@/lib/bot-settings";
 
 type BotContext = Context<Update>;
 type Extra = object;
+
+/** Telegram copy_text buttons (Bot API 7+). Cast because telegraf types lag behind. */
+function copyButton(label: string, value: string) {
+  const text = (value || "").trim().slice(0, 256);
+  return {
+    text: label.slice(0, 64),
+    copy_text: { text: text || "—" },
+  } as unknown as ReturnType<typeof Markup.button.callback>;
+}
 
 function displayName(ctx: BotContext) {
   const u = ctx.from;
@@ -17,19 +30,65 @@ function displayName(ctx: BotContext) {
 
 function mainMenu() {
   return Markup.keyboard([
-    ["How to pay", "I already paid"],
-    ["My status", "Help"],
+    ["💚 How to pay", "📸 I already paid"],
+    ["📊 My status", "✨ Help"],
   ])
     .resize()
     .persistent();
 }
 
-function baseVars(config: ReturnType<typeof getBotConfig>, firstName?: string) {
+function paymentInlineKeyboard(settings: BotSettings) {
+  const telebirr = (settings.telebirr_phone || "").trim();
+  const cbe = (settings.cbe_account_number || "").trim();
+  const rows: Array<
+    Array<
+      | ReturnType<typeof Markup.button.callback>
+      | ReturnType<typeof copyButton>
+    >
+  > = [];
+
+  if (telebirr && telebirr !== "UPDATE_ME") {
+    rows.push([copyButton("💚 Copy Telebirr phone", telebirr)]);
+  } else {
+    rows.push([
+      Markup.button.callback("💚 Telebirr (set in admin)", "pay:hint:telebirr"),
+    ]);
+  }
+
+  if (cbe && cbe !== "UPDATE_ME") {
+    rows.push([copyButton("💙 Copy CBE account", cbe)]);
+  } else {
+    rows.push([
+      Markup.button.callback("💙 CBE (set in admin)", "pay:hint:cbe"),
+    ]);
+  }
+
+  rows.push([
+    Markup.button.callback("📸 I paid — send screenshot", "pay:ask_proof"),
+  ]);
+
+  return Markup.inlineKeyboard(rows);
+}
+
+function baseVars(
+  config: ReturnType<typeof getBotConfig>,
+  firstName?: string,
+  settings?: BotSettings
+) {
   return {
     first_name: firstName || "friend",
     mini_app_url: config.miniAppUrl,
     invite_link: "",
+    ...(settings ? paymentVars(settings) : {}),
   };
+}
+
+async function withTyping(ctx: BotContext) {
+  try {
+    await ctx.sendChatAction("typing");
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Telegram legacy Markdown is fragile — fall back to plain text on parse errors. */
@@ -85,19 +144,25 @@ async function isActiveMember(telegramUserId: number) {
   return Boolean(data && data.status === "active");
 }
 
-async function sendPaymentInfo(ctx: BotContext, config: ReturnType<typeof getBotConfig>) {
+async function sendPaymentInfo(
+  ctx: BotContext,
+  config: ReturnType<typeof getBotConfig>
+) {
+  await withTyping(ctx);
   const settings = await getBotSettings();
-  const vars = baseVars(config, ctx.from?.first_name);
-  await safeReply(
-    ctx,
-    renderBotText(settings.payment_instructions, vars),
-    mainMenu()
-  );
+  const vars = baseVars(config, ctx.from?.first_name, settings);
+  await safeReply(ctx, renderBotText(settings.payment_instructions, vars), {
+    ...paymentInlineKeyboard(settings),
+  });
 }
 
-async function sendHelp(ctx: BotContext, config: ReturnType<typeof getBotConfig>) {
+async function sendHelp(
+  ctx: BotContext,
+  config: ReturnType<typeof getBotConfig>
+) {
+  await withTyping(ctx);
   const settings = await getBotSettings();
-  const vars = baseVars(config, ctx.from?.first_name);
+  const vars = baseVars(config, ctx.from?.first_name, settings);
   await safeReply(ctx, renderBotText(settings.help_text, vars), mainMenu());
 }
 
@@ -106,8 +171,9 @@ async function replyStatus(
   config: ReturnType<typeof getBotConfig>
 ) {
   if (!ctx.from) return;
+  await withTyping(ctx);
   const settings = await getBotSettings();
-  const vars = baseVars(config, ctx.from.first_name);
+  const vars = baseVars(config, ctx.from.first_name, settings);
   const member = await isActiveMember(ctx.from.id);
   if (member) {
     await safeReply(
@@ -160,12 +226,15 @@ async function replyStatus(
 
 async function ensureCommands(bot: Telegraf<BotContext>) {
   await bot.telegram.setMyCommands([
-    { command: "start", description: "Pay & join the community" },
-    { command: "pay", description: "Show payment instructions" },
-    { command: "status", description: "Check my payment / membership" },
-    { command: "help", description: "How this bot works" },
+    { command: "start", description: "✨ Pay & join Liq Academy" },
+    { command: "pay", description: "💚 Telebirr & CBE payment details" },
+    { command: "status", description: "📊 Check payment / membership" },
+    { command: "help", description: "🧭 How this bot works" },
     { command: "chatid", description: "Show this chat ID (for setup)" },
-    { command: "rejoin", description: "Get a new paid-group invite if you were removed" },
+    {
+      command: "rejoin",
+      description: "🔁 Get a new paid-group invite if removed",
+    },
   ]);
 }
 
@@ -176,20 +245,26 @@ export function createBot() {
   bot.start(async (ctx) => {
     try {
       if (ctx.chat?.type !== "private") {
-        await ctx.reply("Please message me in a private chat to join.");
+        await ctx.reply("👋 Please message me in a *private chat* to join.", {
+          parse_mode: "Markdown",
+        });
         return;
       }
+      await withTyping(ctx);
       const settings = await getBotSettings();
-      const vars = baseVars(config, ctx.from?.first_name);
+      const vars = baseVars(config, ctx.from?.first_name, settings);
       await safeReply(
         ctx,
         renderBotText(settings.welcome_text, vars),
         mainMenu()
       );
-      await safeReply(ctx, renderBotText(settings.payment_instructions, vars));
+      await withTyping(ctx);
+      await safeReply(ctx, renderBotText(settings.payment_instructions, vars), {
+        ...paymentInlineKeyboard(settings),
+      });
     } catch (e) {
       console.error("/start failed", e);
-      await ctx.reply("Sorry, something went wrong. Try /pay or /help.");
+      await ctx.reply("😅 Sorry, something went wrong. Try /pay or /help.");
     }
   });
 
@@ -245,13 +320,15 @@ export function createBot() {
       return;
     }
     try {
+      await withTyping(ctx);
       const inviteLink = await issuePaidGroupInvite(
         ctx.telegram,
         config.paidGroupId,
         ctx.from.id
       );
       await ctx.reply(
-        `Here is a new one-time invite (valid 24 hours). Use this new link only — old links do not work:\n${inviteLink}`
+        `🔁 Here is a *new* one-time invite (valid 24 hours).\nUse this new link only — old links do not work:\n${inviteLink}`,
+        { parse_mode: "Markdown" }
       );
     } catch (e) {
       console.error("/rejoin failed", e);
@@ -271,8 +348,9 @@ export function createBot() {
   });
 
   bot.hears(/i already paid/i, async (ctx) => {
+    await withTyping(ctx);
     const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name);
+    const vars = baseVars(config, ctx.from?.first_name, settings);
     await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
   });
 
@@ -280,8 +358,22 @@ export function createBot() {
     await replyStatus(ctx, config);
   });
 
-  bot.hears(/^(ℹ️\s*)?help$/i, async (ctx) => {
+  bot.hears(/help$/i, async (ctx) => {
     await sendHelp(ctx, config);
+  });
+
+  bot.action("pay:ask_proof", async (ctx) => {
+    await ctx.answerCbQuery("Send your screenshot as a photo 📸");
+    const settings = await getBotSettings();
+    const vars = baseVars(config, ctx.from?.first_name, settings);
+    await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
+  });
+
+  bot.action(/^pay:hint:(telebirr|cbe)$/, async (ctx) => {
+    await ctx.answerCbQuery(
+      "Admin still needs to set this number in the portal.",
+      { show_alert: true }
+    );
   });
 
   bot.on("photo", async (ctx) => {
@@ -294,8 +386,9 @@ export function createBot() {
       }
       if (!ctx.from) return;
 
+      await withTyping(ctx);
       const settings = await getBotSettings();
-      const vars = baseVars(config, ctx.from.first_name);
+      const vars = baseVars(config, ctx.from.first_name, settings);
 
       if (!config.adminGroupId) {
         await ctx.reply(
@@ -332,7 +425,7 @@ export function createBot() {
       }
 
       const adminCaption = [
-        "New payment proof",
+        "🧾 New payment proof",
         `Request: ${request.id}`,
         `From: ${displayName(ctx)}`,
         `User ID: ${ctx.from.id}`,
@@ -364,6 +457,12 @@ export function createBot() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", request.id);
+
+      try {
+        await ctx.react("👍");
+      } catch {
+        /* older clients / restricted chats */
+      }
 
       await safeReply(
         ctx,
@@ -422,9 +521,9 @@ export function createBot() {
             request.telegram_user_id,
             renderBotText(
               settings.rejected_text,
-              baseVars(config, request.first_name || undefined)
+              baseVars(config, request.first_name || undefined, settings)
             ),
-            { protect_content: true }
+            { protect_content: true, parse_mode: "Markdown" }
           );
         } catch (e) {
           console.error("Failed to notify student", e);
@@ -487,12 +586,14 @@ export function createBot() {
         .eq("id", requestId);
 
       const approveMsg = renderBotText(settings.approved_text, {
-        ...baseVars(config, request.first_name || undefined),
+        ...baseVars(config, request.first_name || undefined, settings),
         invite_link: inviteLink,
       });
 
       try {
-        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg);
+        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg, {
+          parse_mode: "Markdown",
+        });
       } catch (e) {
         console.error("Failed to DM invite", e);
         await ctx.reply(
@@ -508,7 +609,7 @@ export function createBot() {
         `${oldCaption}\n\nApproved by admin ${adminId}\nInvite sent.`,
         { reply_markup: { inline_keyboard: [] } }
       );
-      await ctx.answerCbQuery("Approved");
+      await ctx.answerCbQuery("Approved ✅");
     } catch (e) {
       console.error("approve/reject failed", e);
       try {
