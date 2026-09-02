@@ -15,11 +15,13 @@ async function main() {
   console.log("Bot polling started as @%s-ready", "Liq_Academy_bot");
   console.log(
     "Admin group:",
-    config.adminGroupId || "(not set — use /chatid in the proof group)"
+    config.adminGroupId ||
+      "(not set — add bot to proof group, forward a group message to @RawDataBot for chat id)"
   );
   console.log(
     "Paid group:",
-    config.paidGroupId || "(not set — use /chatid in the paid group)"
+    config.paidGroupId ||
+      "(not set — add bot to paid group, forward a group message to @RawDataBot for chat id)"
   );
 
   await bot.launch();

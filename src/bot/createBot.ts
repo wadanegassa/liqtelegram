@@ -263,7 +263,6 @@ const BOT_COMMANDS = [
   { command: "pay", description: "Telebirr & CBE payment details" },
   { command: "status", description: "Check payment / membership" },
   { command: "help", description: "Help + support chat" },
-  { command: "chatid", description: "Show this chat ID (for setup)" },
 ] as const;
 
 const BOT_COMMAND_SCOPES = [
@@ -352,14 +351,6 @@ export function createBot() {
       console.error("/status failed", e);
       await ctx.reply("Could not check status. Try again.");
     }
-  });
-
-  bot.command("chatid", async (ctx) => {
-    const chat = ctx.chat;
-    if (!chat) return;
-    await ctx.reply(
-      `Chat title: ${"title" in chat ? chat.title : "private"}\nChat ID: ${chat.id}\nType: ${chat.type}`
-    );
   });
 
   // Match menu buttons (with or without old emoji prefixes)
