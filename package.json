@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "bot:poll": "tsx scripts/bot-poll.ts"
+    "bot:poll": "tsx scripts/bot-poll.ts",
+    "bot:sync-commands": "tsx scripts/sync-bot-commands.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

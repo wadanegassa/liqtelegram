@@ -258,20 +258,47 @@ async function replyStatus(
   });
 }
 
+const BOT_COMMANDS = [
+  { command: "start", description: "Start — join Liq Academy" },
+  { command: "pay", description: "Telebirr & CBE payment details" },
+  { command: "status", description: "Check payment / membership" },
+  { command: "help", description: "Help + support chat" },
+  { command: "chatid", description: "Show this chat ID (for setup)" },
+] as const;
+
+const BOT_COMMAND_SCOPES = [
+  { type: "default" as const },
+  { type: "all_private_chats" as const },
+  { type: "all_group_chats" as const },
+  { type: "all_chat_administrators" as const },
+];
+
 async function ensureCommands(bot: Telegraf<BotContext>) {
-  await bot.telegram.deleteMyCommands();
-  await bot.telegram.setMyCommands([
-    { command: "start", description: "Start — join Liq Academy" },
-    { command: "pay", description: "Telebirr & CBE payment details" },
-    { command: "status", description: "Check payment / membership" },
-    { command: "help", description: "Help + support chat" },
-    { command: "chatid", description: "Show this chat ID (for setup)" },
-  ]);
+  for (const scope of BOT_COMMAND_SCOPES) {
+    await bot.telegram.deleteMyCommands({ scope });
+  }
+  for (const scope of BOT_COMMAND_SCOPES) {
+    await bot.telegram.setMyCommands([...BOT_COMMANDS], { scope });
+  }
 }
 
 export function createBot() {
   const config = getBotConfig();
   const bot = new Telegraf<BotContext>(config.token);
+  let commandsSynced = false;
+
+  bot.use(async (_ctx, next) => {
+    if (!commandsSynced) {
+      commandsSynced = true;
+      try {
+        await ensureCommands(bot);
+      } catch (error) {
+        commandsSynced = false;
+        console.error("Failed to sync Telegram command menu", error);
+      }
+    }
+    return next();
+  });
 
   bot.start(async (ctx) => {
     try {
