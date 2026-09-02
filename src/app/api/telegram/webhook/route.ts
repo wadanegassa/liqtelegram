@@ -6,9 +6,18 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 let botInstance: ReturnType<typeof createBot> | null = null;
+let commandsSynced = false;
 
 function getBot() {
-  if (!botInstance) botInstance = createBot();
+  if (!botInstance) {
+    botInstance = createBot();
+    if (!commandsSynced) {
+      commandsSynced = true;
+      void botInstance.launchCommands().catch((error) => {
+        console.error("Failed to sync Telegram command menu", error);
+      });
+    }
+  }
   return botInstance;
 }
 

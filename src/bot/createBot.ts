@@ -259,6 +259,7 @@ async function replyStatus(
 }
 
 async function ensureCommands(bot: Telegraf<BotContext>) {
+  await bot.telegram.deleteMyCommands();
   await bot.telegram.setMyCommands([
     { command: "start", description: "Start — join Liq Academy" },
     { command: "pay", description: "Telebirr & CBE payment details" },
