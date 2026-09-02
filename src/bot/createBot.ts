@@ -265,10 +265,6 @@ async function ensureCommands(bot: Telegraf<BotContext>) {
     { command: "status", description: "Check payment / membership" },
     { command: "help", description: "Help + support chat" },
     { command: "chatid", description: "Show this chat ID (for setup)" },
-    {
-      command: "rejoin",
-      description: "Get a new paid-group invite if removed",
-    },
   ]);
 }
 
@@ -336,41 +332,6 @@ export function createBot() {
     await ctx.reply(
       `Chat title: ${"title" in chat ? chat.title : "private"}\nChat ID: ${chat.id}\nType: ${chat.type}`
     );
-  });
-
-  bot.command("rejoin", async (ctx) => {
-    if (ctx.chat?.type !== "private" || !ctx.from) {
-      await ctx.reply("Message me in a private chat and send /rejoin.");
-      return;
-    }
-    if (!config.paidGroupId) {
-      await ctx.reply("Paid group is not configured yet.");
-      return;
-    }
-    const member = await isActiveMember(ctx.from.id);
-    if (!member) {
-      await ctx.reply(
-        "You are not an approved member yet. Pay, send a screenshot, and wait for admin approval."
-      );
-      return;
-    }
-    try {
-      await withTyping(ctx);
-      const inviteLink = await issuePaidGroupInvite(
-        ctx.telegram,
-        config.paidGroupId,
-        ctx.from.id
-      );
-      await ctx.reply(
-        `🔁 Here is a *new* one-time invite (valid 24 hours).\nUse this new link only — old links do not work:\n${inviteLink}`,
-        { parse_mode: "Markdown" }
-      );
-    } catch (e) {
-      console.error("/rejoin failed", e);
-      await ctx.reply(
-        "Could not create a new invite. Ask an admin to unban you in the paid group, then try /rejoin again."
-      );
-    }
   });
 
   // Match menu buttons (with or without old emoji prefixes)

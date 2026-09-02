@@ -35,7 +35,7 @@ Easy steps / ቀላል እርምጃዎች:
 1️⃣ Tap *How to pay* → copy Telebirr or CBE
 2️⃣ Pay the amount / መጠኑን ይክፈሉ
 3️⃣ Send screenshot here / ስክሪንሹት እዚህ ይላኩ
-4️⃣ Wait for approval / እስከሚፀድቅ ይጠብቁ
+4️⃣ Wait for approval → *one-time* invite link / እስከሚፀድቅ → *አንድ ጊዜ* ሊንክ
 
 👇 Use the menu below.`,
 
@@ -62,7 +62,7 @@ Then pay and send a clear screenshot here 📸
 1️⃣ Tap *How to pay* → copy Telebirr or CBE
 2️⃣ Pay {{amount}} ETB to {{account_name}}
 3️⃣ Send payment *screenshot* in this chat
-4️⃣ Admin reviews → you get invite link (24h)
+4️⃣ Admin reviews → you get a *one-time* invite (works once, 24h)
 
 📚 After joining: open pinned lesson links in the paid group only.
 ቡድኑ ውስጥ ከተሰቀሉት ሊንኮች ብቻ ይጠቀሙ።
@@ -82,11 +82,11 @@ Check anytime with *My status*`,
 
   approved_text: `🎉 *Approved! / ተፅድቋል!* Welcome to Liq Academy 💚
 
-One-time invite (24h) / አንድ ጊዜ የሚያገለግል ሊንክ:
+*One-time* invite (24h) — works once only / አንድ ጊዜ ብቻ የሚያገለግል:
 {{invite_link}}
 
-Join the group, then open pinned lesson links 📚
-ቡድኑን ይቀላቀሉ፣ ከዚያ የተሰቀሉትን ሊንኮች ይክፈቱ`,
+Join the group now, then open pinned lesson links 📚
+አሁኑኑ ቡድኑን ይቀላቀሉ፣ ከዚያ የተሰቀሉትን ሊንኮች ይክፈቱ`,
 
   rejected_text: `😅 Proof rejected / ማስረጃው አልተቀበለም።
 
@@ -96,7 +96,7 @@ Send a clearer successful-payment screenshot (amount + name visible).
   status_member_text: `✅ You are a member / አባል ነዎት 🌟
 
 Use pinned links in the paid group.
-Lost access? / አገናኝ ጠፋ? → /rejoin`,
+ቡድኑ ውስጥ ከተሰቀሉት ሊንኮች ብቻ ይጠቀሙ።`,
 
   status_pending_text: `⏳ Pending review / በመጠባበቅ ላይ
 

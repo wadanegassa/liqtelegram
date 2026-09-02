@@ -70,7 +70,7 @@ Here is your *one-time* invite link (expires in 24h):
 
 Mini App: {{mini_app_url}}',
   '❌ Your payment proof was rejected. Please send a clearer screenshot of a successful payment.',
-  '✅ You are an approved member. If you lost the invite, ask an admin to send a new one.',
+  '✅ You are an approved member. Use pinned links in the paid group.',
   '⏳ Your proof is waiting for admin review.',
   'No payment proof yet. Pay, then send a screenshot here.'
 )
