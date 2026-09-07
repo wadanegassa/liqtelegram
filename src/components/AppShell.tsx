@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "@/components/ThemeProvider";
+import { useTelegram } from "@/components/TelegramProvider";
 
 function TopBar() {
   return (
@@ -82,6 +83,21 @@ export function AppShell({
 }
 
 export function AccessGate() {
+  const { ready, startParam } = useTelegram();
+
+  // Deep links land on "/" first, then redirect — keep a loading screen so
+  // members never flash the "Members only" gate while routing.
+  if (!ready || startParam) {
+    return (
+      <ReaderShell
+        title="Opening…"
+        subtitle="Loading your lesson link"
+      >
+        <p className="text-sm text-[var(--tg-hint)]">Please wait.</p>
+      </ReaderShell>
+    );
+  }
+
   return (
     <ReaderShell
       title="Members only"
