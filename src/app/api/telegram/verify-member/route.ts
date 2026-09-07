@@ -3,6 +3,12 @@ import {
   isPaidGroupMember,
   validateWebAppInitData,
 } from "@/lib/telegram-auth";
+import {
+  MEMBER_COOKIE_NAME,
+  attachMemberSessionCookie,
+  createMemberSessionToken,
+  verifyMemberSessionToken,
+} from "@/lib/member-session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,11 +45,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const membership = await isPaidGroupMember(
-      botToken,
-      paidGroupId,
-      validated.user.id
-    );
+    const userId = validated.user.id;
+    const existing = request.cookies.get(MEMBER_COOKIE_NAME)?.value;
+    if (await verifyMemberSessionToken(existing, userId)) {
+      return NextResponse.json({
+        allowed: true,
+        userId,
+        status: "cached",
+        cached: true,
+      });
+    }
+
+    const membership = await isPaidGroupMember(botToken, paidGroupId, userId);
 
     if (!membership.member) {
       return NextResponse.json({
@@ -55,11 +68,19 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       allowed: true,
-      userId: validated.user.id,
+      userId,
       status: membership.status,
+      cached: false,
     });
+    try {
+      const token = await createMemberSessionToken(userId);
+      attachMemberSessionCookie(res, token);
+    } catch (e) {
+      console.error("Could not set member session cookie", e);
+    }
+    return res;
   } catch (e) {
     return NextResponse.json(
       {

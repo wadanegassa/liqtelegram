@@ -4,31 +4,53 @@ import { useEffect, useState, type ReactNode } from "react";
 import { ReaderShell } from "@/components/AppShell";
 import { LockNavigation } from "@/components/LockNavigation";
 import { ContentProtection } from "@/components/ContentProtection";
+import { useTelegram } from "@/components/TelegramProvider";
 
 type State =
   | { kind: "loading" }
   | { kind: "allowed"; watermark: string }
   | { kind: "denied"; message: string };
 
+function readInitData(): string {
+  return window.Telegram?.WebApp?.initData || "";
+}
+
+/** Wait briefly for Telegram WebApp to inject initData (avoids false "members only"). */
+async function waitForInitData(maxMs = 2500): Promise<string> {
+  const existing = readInitData();
+  if (existing) return existing;
+
+  const started = Date.now();
+  while (Date.now() - started < maxMs) {
+    await new Promise((r) => setTimeout(r, 50));
+    const next = readInitData();
+    if (next) return next;
+  }
+  return readInitData();
+}
+
 /**
  * Blocks Mini App content unless the Telegram user is in the paid group.
  */
 export function MemberGate({ children }: { children: ReactNode }) {
+  const { ready } = useTelegram();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
+    if (!ready) return;
+
     let cancelled = false;
 
     async function run() {
-      const initData = window.Telegram?.WebApp?.initData || "";
+      const initData = await waitForInitData();
+      if (cancelled) return;
+
       if (!initData) {
-        if (!cancelled) {
-          setState({
-            kind: "denied",
-            message:
-              "Open this link from inside Telegram while you are a member of the paid group.",
-          });
-        }
+        setState({
+          kind: "denied",
+          message:
+            "Open this link from inside Telegram while you are a member of the paid group.",
+        });
         return;
       }
 
@@ -36,6 +58,7 @@ export function MemberGate({ children }: { children: ReactNode }) {
         const res = await fetch("/api/telegram/verify-member", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify({ initData }),
         });
         const json = await res.json();
@@ -70,7 +93,7 @@ export function MemberGate({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ready]);
 
   if (state.kind === "loading") {
     return (

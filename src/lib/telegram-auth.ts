@@ -66,12 +66,20 @@ export async function isPaidGroupMember(
 ): Promise<{ member: boolean; status?: string; error?: string }> {
   try {
     const url = `https://api.telegram.org/bot${botToken}/getChatMember`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: paidGroupId, user_id: userId }),
-      cache: "no-store",
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: paidGroupId, user_id: userId }),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
     const json = (await res.json()) as {
       ok: boolean;
       description?: string;
@@ -89,9 +97,16 @@ export async function isPaidGroupMember(
     );
     return { member: allowed, status };
   } catch (e) {
+    const aborted =
+      e instanceof Error &&
+      (e.name === "AbortError" || /aborted/i.test(e.message));
     return {
       member: false,
-      error: e instanceof Error ? e.message : "Membership check failed",
+      error: aborted
+        ? "Membership check timed out. Close and reopen the Mini App."
+        : e instanceof Error
+          ? e.message
+          : "Membership check failed",
     };
   }
 }
