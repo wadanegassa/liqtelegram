@@ -11,13 +11,13 @@ alter table public.bot_settings
   add column if not exists telebirr_phone text not null default 'UPDATE_ME';
 
 alter table public.bot_settings
-  add column if not exists telebirr_name text not null default 'Telebirr';
+  add column if not exists telebirr_name text not null default 'UPDATE_ME';
 
 alter table public.bot_settings
   add column if not exists cbe_account_number text not null default 'UPDATE_ME';
 
 alter table public.bot_settings
-  add column if not exists cbe_account_name text not null default 'CBE Birr';
+  add column if not exists cbe_account_name text not null default 'UPDATE_ME';
 
 alter table public.bot_settings
   add column if not exists support_chat_url text not null default 'https://t.me/Liq_Academy_bot';
@@ -27,9 +27,9 @@ set
   payment_amount = coalesce(nullif(payment_amount, ''), 'UPDATE_ME'),
   payment_account_name = coalesce(nullif(payment_account_name, ''), 'UPDATE_ME'),
   telebirr_phone = coalesce(nullif(telebirr_phone, ''), 'UPDATE_ME'),
-  telebirr_name = coalesce(nullif(telebirr_name, ''), 'Telebirr'),
+  telebirr_name = coalesce(nullif(telebirr_name, ''), 'UPDATE_ME'),
   cbe_account_number = coalesce(nullif(cbe_account_number, ''), 'UPDATE_ME'),
-  cbe_account_name = coalesce(nullif(cbe_account_name, ''), 'CBE Birr'),
+  cbe_account_name = coalesce(nullif(cbe_account_name, ''), 'UPDATE_ME'),
   support_chat_url = coalesce(nullif(support_chat_url, ''), 'https://t.me/Liq_Academy_bot'),
   updated_at = now()
 where id = 1;

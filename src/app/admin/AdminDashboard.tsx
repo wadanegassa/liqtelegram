@@ -1056,8 +1056,8 @@ function BotSettingsAdmin({
     },
     {
       key: "payment_account_name",
-      label: "Account name (shown to students)",
-      placeholder: "Liq Academy",
+      label: "Shared fallback name ({{account_name}}, optional)",
+      placeholder: "Used only if your text still has {{account_name}}",
     },
     {
       key: "telebirr_phone",
@@ -1066,18 +1066,18 @@ function BotSettingsAdmin({
     },
     {
       key: "telebirr_name",
-      label: "Telebirr label",
-      placeholder: "Telebirr",
+      label: "Telebirr account holder name",
+      placeholder: "Name on Telebirr",
     },
     {
       key: "cbe_account_number",
-      label: "CBE account number (copy button)",
+      label: "CBE / bank account number (copy button)",
       placeholder: "1000xxxxxxx",
     },
     {
       key: "cbe_account_name",
-      label: "CBE label",
-      placeholder: "CBE Birr",
+      label: "CBE / bank account holder name",
+      placeholder: "Name on bank account",
     },
     {
       key: "support_chat_url",
@@ -1095,7 +1095,7 @@ function BotSettingsAdmin({
     {
       key: "payment_instructions",
       label:
-        "Payment message (use {{amount}}, {{account_name}}, {{telebirr_phone}}, {{cbe_account}})",
+        "Payment message (use {{amount}}, {{telebirr_name}}, {{telebirr_phone}}, {{cbe_account_name}}, {{cbe_account}})",
       rows: 12,
     },
     { key: "help_text", label: "Help text", rows: 8 },
@@ -1128,7 +1128,8 @@ function BotSettingsAdmin({
           Students see English + Amharic by default. Edit texts anytime. Help
           opens your Support chat link. Placeholders:{" "}
           <code>{"{{first_name}}"}</code>, <code>{"{{amount}}"}</code>,{" "}
-          <code>{"{{telebirr_phone}}"}</code>, <code>{"{{cbe_account}}"}</code>,{" "}
+          <code>{"{{telebirr_name}}"}</code>, <code>{"{{telebirr_phone}}"}</code>,{" "}
+          <code>{"{{cbe_account_name}}"}</code>, <code>{"{{cbe_account}}"}</code>,{" "}
           <code>{"{{invite_link}}"}</code>, <code>{"{{support_url}}"}</code>.
         </p>
         {hint ? (

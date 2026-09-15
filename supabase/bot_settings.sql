@@ -16,9 +16,9 @@ create table if not exists public.bot_settings (
   payment_amount text not null default 'UPDATE_ME',
   payment_account_name text not null default 'UPDATE_ME',
   telebirr_phone text not null default 'UPDATE_ME',
-  telebirr_name text not null default 'Telebirr',
+  telebirr_name text not null default 'UPDATE_ME',
   cbe_account_number text not null default 'UPDATE_ME',
-  cbe_account_name text not null default 'CBE Birr',
+  cbe_account_name text not null default 'UPDATE_ME',
   support_chat_url text not null default 'https://t.me/Liq_Academy_bot',
   updated_at timestamptz not null default now()
 );

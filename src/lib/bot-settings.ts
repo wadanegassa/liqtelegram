@@ -12,15 +12,15 @@ export type BotSettings = {
   status_none_text: string;
   /** ETB amount shown on pay screen, e.g. "500" */
   payment_amount: string;
-  /** Name on the receiving account */
+  /** Shared/fallback name for {{account_name}} (optional) */
   payment_account_name: string;
   /** Telebirr phone number students can copy */
   telebirr_phone: string;
-  /** Optional Telebirr display label */
+  /** Telebirr account holder name */
   telebirr_name: string;
-  /** CBE account number students can copy */
+  /** CBE / bank account number students can copy */
   cbe_account_number: string;
-  /** Optional CBE account holder name */
+  /** CBE / bank account holder name */
   cbe_account_name: string;
   /** Support chat / Telegram link opened from Help */
   support_chat_url: string;
@@ -42,12 +42,13 @@ Easy steps / ቀላል እርምጃዎች:
   payment_instructions: `💎 *Pay to join / ለመቀላቀል ይክፈሉ*
 
 💰 Amount / መጠን: *{{amount}} ETB*
-👤 Name / ስም: *{{account_name}}*
 
 🟢 *Telebirr*
+👤 Name / ስም: *{{telebirr_name}}*
 📱 \`{{telebirr_phone}}\`
 
 🔵 *CBE Birr*
+👤 Name / ስም: *{{cbe_account_name}}*
 🏦 \`{{cbe_account}}\`
 
 👇 Tap a button to *copy* the number
@@ -60,7 +61,7 @@ Then pay and send a clear screenshot here 📸
 
 *How to join / እንዴት ይቀላቀላሉ*
 1️⃣ Tap *How to pay* → copy Telebirr or CBE
-2️⃣ Pay {{amount}} ETB to {{account_name}}
+2️⃣ Pay {{amount}} ETB (check the name on Telebirr / CBE)
 3️⃣ Send payment *screenshot* in this chat
 4️⃣ Admin reviews → you get a *one-time* invite (works once, 24h)
 
@@ -110,9 +111,9 @@ Tap *How to pay* → copy number → pay → send screenshot 📸`,
   payment_amount: "UPDATE_ME",
   payment_account_name: "UPDATE_ME",
   telebirr_phone: "UPDATE_ME",
-  telebirr_name: "Telebirr",
+  telebirr_name: "UPDATE_ME",
   cbe_account_number: "UPDATE_ME",
-  cbe_account_name: "CBE Birr",
+  cbe_account_name: "UPDATE_ME",
   support_chat_url: "https://t.me/Liq_Academy_bot",
 };
 
@@ -132,9 +133,9 @@ export function paymentVars(settings: BotSettings): Record<string, string> {
     amount: settings.payment_amount || "UPDATE_ME",
     account_name: settings.payment_account_name || "UPDATE_ME",
     telebirr_phone: settings.telebirr_phone || "UPDATE_ME",
-    telebirr_name: settings.telebirr_name || "Telebirr",
+    telebirr_name: settings.telebirr_name || "UPDATE_ME",
     cbe_account: settings.cbe_account_number || "UPDATE_ME",
-    cbe_account_name: settings.cbe_account_name || "CBE Birr",
+    cbe_account_name: settings.cbe_account_name || "UPDATE_ME",
     support_url: (settings.support_chat_url || "").trim(),
   };
 }
