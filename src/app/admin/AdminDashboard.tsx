@@ -15,14 +15,20 @@ import type { Chapter, Course, Department, Exam } from "@/lib/types";
 import type { BotSettings } from "@/lib/bot-settings";
 import { DEFAULT_BOT_SETTINGS } from "@/lib/bot-settings";
 
-type Tab = "courses" | "chapters" | "exams" | "departments" | "bot";
+type Tab =
+  | "analytics"
+  | "courses"
+  | "chapters"
+  | "exams"
+  | "departments"
+  | "bot";
 
 export function AdminDashboard() {
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [tab, setTab] = useState<Tab>("courses");
+  const [tab, setTab] = useState<Tab>("analytics");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [setupHint, setSetupHint] = useState<string | null>(null);
@@ -242,12 +248,13 @@ export function AdminDashboard() {
   return (
     <AppShell
       title="Content admin"
-      subtitle="Manage courses and bot payment texts. Copy Telegram links for the paid group."
+      subtitle="Payments analytics, courses, and bot texts. Revenue counts approved proofs only."
       backHref="/"
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {(
           [
+            ["analytics", "Analytics"],
             ["courses", "Courses"],
             ["chapters", "Chapters"],
             ["exams", "Exams"],
@@ -282,6 +289,8 @@ export function AdminDashboard() {
       {message ? (
         <p className="mb-3 text-sm text-[var(--liq-accent)]">{message}</p>
       ) : null}
+
+      {tab === "analytics" ? <AnalyticsAdmin /> : null}
 
       {tab === "courses" ? (
         <CoursesAdmin
@@ -401,6 +410,372 @@ function Field({
       <span className="mb-1 block text-[var(--tg-hint)]">{label}</span>
       {children}
     </label>
+  );
+}
+
+type AnalyticsSummary = {
+  total_requests: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  paying_users: number;
+  unique_submitters: number;
+  payment_amount_etb: number;
+  revenue_etb: number;
+};
+
+type AnalyticsDay = {
+  date: string;
+  approved: number;
+  rejected: number;
+  pending: number;
+};
+
+type AnalyticsRecent = {
+  id: string;
+  telegram_user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  reviewed_at: string | null;
+  estimated_amount_etb: number;
+};
+
+function analyticsDisplayName(row: AnalyticsRecent) {
+  const name = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
+  if (name && row.username) return `${name} (@${row.username})`;
+  if (name) return name;
+  if (row.username) return `@${row.username}`;
+  return `ID ${row.telegram_user_id}`;
+}
+
+function formatEtb(n: number) {
+  return `${n.toLocaleString()} ETB`;
+}
+
+function formatWhen(iso: string | null) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+function BarChart({
+  title,
+  days,
+  field,
+  color,
+}: {
+  title: string;
+  days: AnalyticsDay[];
+  field: "approved" | "rejected" | "pending";
+  color: string;
+}) {
+  const max = Math.max(1, ...days.map((d) => d[field]));
+  return (
+    <div className="card-liq">
+      <h4 className="mb-3 font-semibold">{title}</h4>
+      <div className="flex h-36 items-end gap-0.5">
+        {days.map((d) => {
+          const value = d[field];
+          const height = Math.max(2, Math.round((value / max) * 100));
+          return (
+            <div
+              key={`${field}-${d.date}`}
+              className="relative flex min-w-0 flex-1 flex-col justify-end"
+              title={`${d.date}: ${value}`}
+            >
+              <div
+                className="w-full rounded-t-sm"
+                style={{ height: `${height}%`, background: color }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex justify-between text-[10px] text-[var(--tg-hint)]">
+        <span>{days[0]?.date?.slice(5) || ""}</span>
+        <span>Last 30 days</span>
+        <span>{days[days.length - 1]?.date?.slice(5) || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+function StatusPie({
+  approved,
+  rejected,
+  pending,
+}: {
+  approved: number;
+  rejected: number;
+  pending: number;
+}) {
+  const total = Math.max(1, approved + rejected + pending);
+  const a = (approved / total) * 100;
+  const r = (rejected / total) * 100;
+  return (
+    <div className="card-liq">
+      <h4 className="mb-3 font-semibold">Status mix</h4>
+      <div
+        className="mx-auto h-40 w-40 rounded-full"
+        style={{
+          background: `conic-gradient(#15803d 0 ${a}%, #b91c1c ${a}% ${a + r}%, #ca8a04 ${a + r}% 100%)`,
+        }}
+        title={`Approved ${approved} · Rejected ${rejected} · Pending ${pending}`}
+      />
+      <ul className="mt-4 space-y-1 text-sm">
+        <li>
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-green-700" />
+          Approved: <strong>{approved}</strong>
+        </li>
+        <li>
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-red-700" />
+          Rejected: <strong>{rejected}</strong>
+        </li>
+        <li>
+          <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-yellow-600" />
+          Pending: <strong>{pending}</strong>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+function AnalyticsAdmin() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+  const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [byDay, setByDay] = useState<AnalyticsDay[]>([]);
+  const [recent, setRecent] = useState<AnalyticsRecent[]>([]);
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "approved" | "rejected" | "pending"
+  >("all");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/analytics", {
+        credentials: "same-origin",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          [json.error, json.hint].filter(Boolean).join(" — ") ||
+            "Could not load analytics"
+        );
+        return;
+      }
+      setSummary(json.summary || null);
+      setByDay(json.by_day || []);
+      setRecent(json.recent || []);
+      setNote(json.note || "");
+    } catch {
+      setError("Could not load analytics");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const filtered = useMemo(() => {
+    if (statusFilter === "all") return recent;
+    return recent.filter((r) => r.status === statusFilter);
+  }, [recent, statusFilter]);
+
+  if (loading) {
+    return <p className="text-sm text-[var(--tg-hint)]">Loading analytics…</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="card-liq space-y-3 text-sm">
+        <p className="text-red-700">{error}</p>
+        <button type="button" className="btn-liq" onClick={() => void load()}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!summary) {
+    return (
+      <p className="text-sm text-[var(--tg-hint)]">No analytics data yet.</p>
+    );
+  }
+
+  const cards: Array<{ label: string; value: string; hint?: string }> = [
+    {
+      label: "Revenue (approved)",
+      value: formatEtb(summary.revenue_etb),
+      hint: `${formatEtb(summary.payment_amount_etb)} × ${summary.approved} approvals`,
+    },
+    {
+      label: "Paying users",
+      value: String(summary.paying_users),
+      hint: "Unique users with ≥1 approved proof",
+    },
+    {
+      label: "Approved",
+      value: String(summary.approved),
+    },
+    {
+      label: "Rejected",
+      value: String(summary.rejected),
+    },
+    {
+      label: "Pending",
+      value: String(summary.pending),
+    },
+    {
+      label: "All proofs",
+      value: String(summary.total_requests),
+      hint: `${summary.unique_submitters} unique submitters`,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-display text-lg font-semibold">Payments overview</h3>
+        <button
+          type="button"
+          className="btn-ghost ml-auto text-sm"
+          onClick={() => void load()}
+        >
+          Refresh
+        </button>
+      </div>
+      {note ? (
+        <p className="text-sm text-[var(--tg-hint)]">{note}</p>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {cards.map((card) => (
+          <div key={card.label} className="card-liq">
+            <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+              {card.label}
+            </p>
+            <p className="mt-1 font-display text-2xl font-semibold">
+              {card.value}
+            </p>
+            {card.hint ? (
+              <p className="mt-1 text-xs text-[var(--tg-hint)]">{card.hint}</p>
+            ) : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <BarChart
+            title="Approved proofs / day"
+            days={byDay}
+            field="approved"
+            color="#15803d"
+          />
+        </div>
+        <StatusPie
+          approved={summary.approved}
+          rejected={summary.rejected}
+          pending={summary.pending}
+        />
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <BarChart
+          title="Rejected / day"
+          days={byDay}
+          field="rejected"
+          color="#b91c1c"
+        />
+        <BarChart
+          title="New pending / day"
+          days={byDay}
+          field="pending"
+          color="#ca8a04"
+        />
+      </div>
+
+      <div className="card-liq space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <h4 className="font-semibold">Recent payment proofs</h4>
+          <select
+            className="input-liq ml-auto w-auto py-1 text-sm"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(
+                e.target.value as "all" | "approved" | "rejected" | "pending"
+              )
+            }
+          >
+            <option value="all">All statuses</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--tg-text)] text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                <th className="py-2 pr-3 font-medium">User</th>
+                <th className="py-2 pr-3 font-medium">Telegram ID</th>
+                <th className="py-2 pr-3 font-medium">Status</th>
+                <th className="py-2 pr-3 font-medium">Submitted</th>
+                <th className="py-2 pr-3 font-medium">Reviewed</th>
+                <th className="py-2 font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="py-6 text-center text-[var(--tg-hint)]"
+                  >
+                    No payment proofs yet.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[var(--tg-code-border)]"
+                  >
+                    <td className="py-2 pr-3">{analyticsDisplayName(row)}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">
+                      {row.telegram_user_id}
+                    </td>
+                    <td className="py-2 pr-3 capitalize">{row.status}</td>
+                    <td className="py-2 pr-3 text-xs text-[var(--tg-hint)]">
+                      {formatWhen(row.created_at)}
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-[var(--tg-hint)]">
+                      {formatWhen(row.reviewed_at)}
+                    </td>
+                    <td className="py-2">
+                      {row.status === "approved"
+                        ? formatEtb(row.estimated_amount_etb)
+                        : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   );
 }
 
