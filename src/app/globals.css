@@ -77,14 +77,32 @@ body {
   white-space: pre-wrap;
 }
 
-.prose-liq ul,
-.prose-liq ol {
+/* Tailwind Preflight sets list-style: none — restore markers so
+   "1. question" in exams/chapters shows the number in the Mini App. */
+.prose-liq ul {
+  list-style-type: disc;
   margin: 0.85em 0;
-  padding-left: 1.35rem;
+  padding-left: 1.5rem;
+}
+
+.prose-liq ol {
+  list-style-type: decimal;
+  margin: 0.85em 0;
+  padding-left: 1.5rem;
 }
 
 .prose-liq li {
+  display: list-item;
   margin: 0.35em 0;
+  padding-left: 0.25rem;
+}
+
+.prose-liq ul ul {
+  list-style-type: circle;
+}
+
+.prose-liq ol ol {
+  list-style-type: lower-alpha;
 }
 
 .prose-liq li > p {
