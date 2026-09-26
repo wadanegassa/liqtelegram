@@ -137,9 +137,56 @@ async function safeReply(ctx: BotContext, text: string, extra: Extra = {}) {
   } catch (err) {
     console.error("Markdown reply failed, falling back to plain text", err);
     try {
-      await ctx.reply(body.replace(/[*_`\[\]]/g, ""), protectedExtra);
+      await ctx.reply(body, protectedExtra);
     } catch (err2) {
       console.error("Plain reply failed", err2);
+    }
+  }
+}
+
+function telegramErrorDescription(err: unknown): string {
+  if (!err || typeof err !== "object") {
+    return err instanceof Error ? err.message : "Unknown Telegram error";
+  }
+  const anyErr = err as {
+    description?: string;
+    message?: string;
+    response?: { description?: string };
+  };
+  return (
+    anyErr.response?.description ||
+    anyErr.description ||
+    anyErr.message ||
+    "Unknown Telegram error"
+  );
+}
+
+/**
+ * DM a user with Markdown, then plain text (keeps invite URLs intact).
+ * Returns null on success, or Telegram's error description on failure.
+ */
+async function safeDmUser(
+  telegram: BotContext["telegram"],
+  userId: number,
+  text: string,
+  extra: Extra = {}
+): Promise<string | null> {
+  const body = (text || "").trim() || "…";
+  try {
+    await telegram.sendMessage(userId, body, {
+      parse_mode: "Markdown",
+      ...extra,
+    });
+    return null;
+  } catch (err) {
+    console.error("Markdown DM failed, trying plain text", err);
+    try {
+      // Do NOT strip "_" etc — invite links like t.me/+xx_yy need them.
+      await telegram.sendMessage(userId, body, extra);
+      return null;
+    } catch (err2) {
+      console.error("Plain DM failed", err2);
+      return telegramErrorDescription(err2);
     }
   }
 }
@@ -632,14 +679,18 @@ export function createBot() {
           .eq("id", requestId);
 
         try {
-          await ctx.telegram.sendMessage(
+          const dmError = await safeDmUser(
+            ctx.telegram,
             request.telegram_user_id,
             renderBotText(
               settings.rejected_text,
               baseVars(config, request.first_name || undefined, settings)
             ),
-            { protect_content: true, parse_mode: "Markdown" }
+            { protect_content: true }
           );
+          if (dmError) {
+            console.error("Failed to notify student of rejection:", dmError);
+          }
         } catch (e) {
           console.error("Failed to notify student", e);
         }
@@ -705,26 +756,33 @@ export function createBot() {
         invite_link: inviteLink,
       });
 
-      try {
-        await ctx.telegram.sendMessage(request.telegram_user_id, approveMsg, {
-          parse_mode: "Markdown",
-        });
-      } catch (e) {
-        console.error("Failed to DM invite", e);
-        await ctx.reply(
-          `Approved, but could not DM the student. Send this link manually:\n${inviteLink}`
-        );
-      }
+      const dmError = await safeDmUser(
+        ctx.telegram,
+        request.telegram_user_id,
+        approveMsg
+      );
 
       const oldCaption =
         ctx.callbackQuery.message && "caption" in ctx.callbackQuery.message
           ? ctx.callbackQuery.message.caption || ""
           : "";
-      await ctx.editMessageCaption(
-        `${oldCaption}\n\nApproved by admin ${adminId}\nInvite sent.`,
-        { reply_markup: { inline_keyboard: [] } }
-      );
-      await ctx.answerCbQuery("Approved");
+
+      if (dmError) {
+        await ctx.reply(
+          `Approved, but could not DM the student.\nReason: ${dmError}\n\nSend this link manually:\n${inviteLink}`
+        );
+        await ctx.editMessageCaption(
+          `${oldCaption}\n\nApproved by admin ${adminId}\nInvite created — DM failed (${dmError}).`,
+          { reply_markup: { inline_keyboard: [] } }
+        );
+      } else {
+        await ctx.editMessageCaption(
+          `${oldCaption}\n\nApproved by admin ${adminId}\nInvite sent by DM.`,
+          { reply_markup: { inline_keyboard: [] } }
+        );
+      }
+      await ctx.answerCbQuery(dmError ? "Approved (DM failed)" : "Approved");
+      return;
     } catch (e) {
       console.error("approve/reject failed", e);
       try {
