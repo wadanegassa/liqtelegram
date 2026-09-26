@@ -181,6 +181,46 @@ async function isActiveMember(telegramUserId: number) {
   return Boolean(data && data.status === "active");
 }
 
+async function getLatestPaymentStatus(telegramUserId: number) {
+  const supabase = createAdminSupabase();
+  const { data, error } = await supabase
+    .from("payment_requests")
+    .select("id, status, created_at")
+    .eq("telegram_user_id", telegramUserId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("latest payment status lookup failed", error);
+    return null;
+  }
+  return data;
+}
+
+/** Block extra proofs while pending/approved so status stays consistent. */
+async function canSubmitPaymentProof(
+  telegramUserId: number
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const latest = await getLatestPaymentStatus(telegramUserId);
+  if (latest?.status === "pending") {
+    return {
+      ok: false,
+      message:
+        "⏳ Your payment proof is already waiting for admin review.\nየክፍያ ማስረጃዎ አስቀድሞ በመጠባበቅ ላይ ነው።\n\nPlease wait — check anytime with *My status*.\nእባክዎ ይጠብቁ — በ*My status* ያረጋግጡ።",
+    };
+  }
+
+  if (await isActiveMember(telegramUserId) || latest?.status === "approved") {
+    return {
+      ok: false,
+      message:
+        "✅ You are already an approved member.\nእርስዎ አስቀድመው አባል ነዎት።\n\nNo need to send another payment screenshot.\nሌላ የክፍያ ስክሪንሹት መላክ አያስፈልግም።",
+    };
+  }
+
+  return { ok: true };
+}
+
 async function sendPaymentInfo(
   ctx: BotContext,
   config: ReturnType<typeof getBotConfig>
@@ -328,6 +368,7 @@ export function createBot() {
 
   bot.command("pay", async (ctx) => {
     try {
+      if (ctx.chat?.type !== "private") return;
       await sendPaymentInfo(ctx, config);
     } catch (e) {
       console.error("/pay failed", e);
@@ -337,6 +378,7 @@ export function createBot() {
 
   bot.command("help", async (ctx) => {
     try {
+      if (ctx.chat?.type !== "private") return;
       await sendHelp(ctx, config);
     } catch (e) {
       console.error("/help failed", e);
@@ -346,6 +388,7 @@ export function createBot() {
 
   bot.command("status", async (ctx) => {
     try {
+      if (ctx.chat?.type !== "private") return;
       await replyStatus(ctx, config);
     } catch (e) {
       console.error("/status failed", e);
@@ -357,6 +400,7 @@ export function createBot() {
   bot.hears(
     /^([💚📊✨📸]\s*)?(How to pay|Pay\s*\/\s*ክፍያ)\s*$/i,
     async (ctx) => {
+      if (ctx.chat?.type !== "private") return;
       try {
         await sendPaymentInfo(ctx, config);
       } catch (e) {
@@ -368,9 +412,15 @@ export function createBot() {
   bot.hears(
     /^([💚📊✨📸]\s*)?(I already paid|I paid\s*\/\s*ከፈልኩ)\s*$/i,
     async (ctx) => {
+      if (ctx.chat?.type !== "private" || !ctx.from) return;
       await withTyping(ctx);
+      const gate = await canSubmitPaymentProof(ctx.from.id);
+      if (!gate.ok) {
+        await safeReply(ctx, gate.message);
+        return;
+      }
       const settings = await getBotSettings();
-      const vars = baseVars(config, ctx.from?.first_name, settings);
+      const vars = baseVars(config, ctx.from.first_name, settings);
       await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
     }
   );
@@ -378,18 +428,26 @@ export function createBot() {
   bot.hears(
     /^([💚📊✨📸]\s*)?(My status|Status\s*\/\s*ሁኔታ)\s*$/i,
     async (ctx) => {
+      if (ctx.chat?.type !== "private") return;
       await replyStatus(ctx, config);
     }
   );
 
   bot.hears(/^([💚📊✨📸]\s*)?(Help|Help\s*\/\s*እገዛ)\s*$/i, async (ctx) => {
+    if (ctx.chat?.type !== "private") return;
     await sendHelp(ctx, config);
   });
 
   bot.action("pay:ask_proof", async (ctx) => {
     await ctx.answerCbQuery("Send your screenshot as a photo");
+    if (!ctx.from) return;
+    const gate = await canSubmitPaymentProof(ctx.from.id);
+    if (!gate.ok) {
+      await safeReply(ctx, gate.message);
+      return;
+    }
     const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from?.first_name, settings);
+    const vars = baseVars(config, ctx.from.first_name, settings);
     await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
   });
 
@@ -417,17 +475,19 @@ export function createBot() {
 
   bot.on("photo", async (ctx) => {
     try {
-      if (ctx.chat?.type !== "private") {
-        await ctx.reply(
-          "Please send payment screenshots in a private chat with me."
-        );
-        return;
-      }
+      // Only accept payment proofs in private chat — ignore paid/admin group posts.
+      if (ctx.chat?.type !== "private") return;
       if (!ctx.from) return;
 
       await withTyping(ctx);
       const settings = await getBotSettings();
       const vars = baseVars(config, ctx.from.first_name, settings);
+
+      const gate = await canSubmitPaymentProof(ctx.from.id);
+      if (!gate.ok) {
+        await safeReply(ctx, gate.message);
+        return;
+      }
 
       if (!config.adminGroupId) {
         await ctx.reply(
@@ -512,6 +572,20 @@ export function createBot() {
       console.error("photo handler failed", e);
       await ctx.reply("Could not process that screenshot. Please try again.");
     }
+  });
+
+  // If they send a screenshot as a file/video in private chat, guide them.
+  bot.on(["document", "video", "animation"], async (ctx) => {
+    if (ctx.chat?.type !== "private" || !ctx.from) return;
+    const gate = await canSubmitPaymentProof(ctx.from.id);
+    if (!gate.ok) {
+      await safeReply(ctx, gate.message);
+      return;
+    }
+    await safeReply(
+      ctx,
+      "📸 Please send your payment proof as a *photo* (screenshot), not a file/video.\nእባክዎ የክፍያ ማስረጃውን እንደ *ፎቶ* (ስክሪንሹት) ይላኩ፣ እንደ ፋይል/ቪዲዮ አይደለም።"
+    );
   });
 
   bot.action(/^pay:(approve|reject):(.+)$/, async (ctx) => {
