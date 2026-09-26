@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { isTestAccount } from "@/lib/test-accounts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,7 +61,16 @@ export async function GET() {
       );
     }
 
-    const rows = (paymentsRes.data || []) as PaymentRow[];
+    const allRows = (paymentsRes.data || []) as PaymentRow[];
+    // Exclude test accounts (e.g. @Pro_hispeace) from revenue and counts.
+    const rows = allRows.filter(
+      (row) =>
+        !isTestAccount({
+          telegram_user_id: row.telegram_user_id,
+          username: row.username,
+        })
+    );
+    const excludedTests = allRows.length - rows.length;
     const amountEtb = parseAmount(settingsRes.data?.payment_amount);
 
     let pending = 0;
@@ -111,8 +121,7 @@ export async function GET() {
       status: row.status,
       created_at: row.created_at,
       reviewed_at: row.reviewed_at,
-      estimated_amount_etb:
-        row.status === "approved" ? amountEtb : 0,
+      estimated_amount_etb: row.status === "approved" ? amountEtb : 0,
     }));
 
     return NextResponse.json({
@@ -125,11 +134,12 @@ export async function GET() {
         unique_submitters: allUserIds.size,
         payment_amount_etb: amountEtb,
         revenue_etb: revenueEtb,
+        excluded_test_proofs: excludedTests,
       },
       by_day: Array.from(byDayMap.values()),
       recent,
       note:
-        "Revenue = approved payment proofs × current bot payment amount. Group admins and manually invited members are not counted.",
+        "Revenue = approved payment proofs × current bot payment amount. Test accounts (e.g. @Pro_hispeace), group admins, and manually invited members are not counted.",
     });
   } catch (e) {
     return NextResponse.json(
