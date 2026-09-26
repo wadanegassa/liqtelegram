@@ -388,13 +388,8 @@ export function createBot() {
 
   bot.start(async (ctx) => {
     try {
-      if (ctx.chat?.type !== "private") {
-        await ctx.reply(
-          "👋 Please message me in a *private chat*.\nእባክዎ በ*የግል ቻት* ይጻፉልኝ።",
-          { parse_mode: "Markdown" }
-        );
-        return;
-      }
+      // Stay quiet in groups (paid group content posts, etc.)
+      if (ctx.chat?.type !== "private") return;
       await withTyping(ctx);
       const settings = await getBotSettings();
       const vars = baseVars(config, ctx.from?.first_name, settings);

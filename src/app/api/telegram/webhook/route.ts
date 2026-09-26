@@ -14,7 +14,15 @@ function getBot() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { bot } = getBot();
+    const { bot, config } = getBot();
+    const expected = config.webhookSecret;
+    if (expected && /^[A-Za-z0-9_-]{1,256}$/.test(expected)) {
+      const got = request.headers.get("x-telegram-bot-api-secret-token") || "";
+      if (got !== expected) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    }
+
     const update = await request.json();
     await bot.handleUpdate(update);
     return NextResponse.json({ ok: true });
