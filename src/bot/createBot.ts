@@ -199,22 +199,22 @@ async function getLatestPaymentStatus(telegramUserId: number) {
 
 /** Block extra proofs while pending/approved so status stays consistent. */
 async function canSubmitPaymentProof(
-  telegramUserId: number
+  telegramUserId: number,
+  settings: BotSettings,
+  vars: Record<string, string>
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   const latest = await getLatestPaymentStatus(telegramUserId);
   if (latest?.status === "pending") {
     return {
       ok: false,
-      message:
-        "⏳ Your payment proof is already waiting for admin review.\nየክፍያ ማስረጃዎ አስቀድሞ በመጠባበቅ ላይ ነው።\n\nPlease wait — check anytime with *My status*.\nእባክዎ ይጠብቁ — በ*My status* ያረጋግጡ።",
+      message: renderBotText(settings.status_pending_text, vars),
     };
   }
 
   if (await isActiveMember(telegramUserId) || latest?.status === "approved") {
     return {
       ok: false,
-      message:
-        "✅ You are already an approved member.\nእርስዎ አስቀድመው አባል ነዎት።\n\nNo need to send another payment screenshot.\nሌላ የክፍያ ስክሪንሹት መላክ አያስፈልግም።",
+      message: renderBotText(settings.status_member_text, vars),
     };
   }
 
@@ -414,13 +414,13 @@ export function createBot() {
     async (ctx) => {
       if (ctx.chat?.type !== "private" || !ctx.from) return;
       await withTyping(ctx);
-      const gate = await canSubmitPaymentProof(ctx.from.id);
+      const settings = await getBotSettings();
+      const vars = baseVars(config, ctx.from.first_name, settings);
+      const gate = await canSubmitPaymentProof(ctx.from.id, settings, vars);
       if (!gate.ok) {
         await safeReply(ctx, gate.message);
         return;
       }
-      const settings = await getBotSettings();
-      const vars = baseVars(config, ctx.from.first_name, settings);
       await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
     }
   );
@@ -441,13 +441,13 @@ export function createBot() {
   bot.action("pay:ask_proof", async (ctx) => {
     await ctx.answerCbQuery("Send your screenshot as a photo");
     if (!ctx.from) return;
-    const gate = await canSubmitPaymentProof(ctx.from.id);
+    const settings = await getBotSettings();
+    const vars = baseVars(config, ctx.from.first_name, settings);
+    const gate = await canSubmitPaymentProof(ctx.from.id, settings, vars);
     if (!gate.ok) {
       await safeReply(ctx, gate.message);
       return;
     }
-    const settings = await getBotSettings();
-    const vars = baseVars(config, ctx.from.first_name, settings);
     await safeReply(ctx, renderBotText(settings.ask_screenshot_text, vars));
   });
 
@@ -483,7 +483,7 @@ export function createBot() {
       const settings = await getBotSettings();
       const vars = baseVars(config, ctx.from.first_name, settings);
 
-      const gate = await canSubmitPaymentProof(ctx.from.id);
+      const gate = await canSubmitPaymentProof(ctx.from.id, settings, vars);
       if (!gate.ok) {
         await safeReply(ctx, gate.message);
         return;
@@ -577,7 +577,9 @@ export function createBot() {
   // If they send a screenshot as a file/video in private chat, guide them.
   bot.on(["document", "video", "animation"], async (ctx) => {
     if (ctx.chat?.type !== "private" || !ctx.from) return;
-    const gate = await canSubmitPaymentProof(ctx.from.id);
+    const settings = await getBotSettings();
+    const vars = baseVars(config, ctx.from.first_name, settings);
+    const gate = await canSubmitPaymentProof(ctx.from.id, settings, vars);
     if (!gate.ok) {
       await safeReply(ctx, gate.message);
       return;
