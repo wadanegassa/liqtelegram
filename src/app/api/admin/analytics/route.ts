@@ -19,7 +19,11 @@ type PaymentRow = {
 };
 
 function dayKey(iso: string) {
-  return iso.slice(0, 10);
+  // Bucket by Africa/Addis_Ababa calendar day (UTC+3, no DST).
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
+  const addisMs = d.getTime() + 3 * 60 * 60 * 1000;
+  return new Date(addisMs).toISOString().slice(0, 10);
 }
 
 function parseAmount(raw: string | null | undefined): number {
@@ -95,16 +99,22 @@ export async function GET() {
       string,
       { date: string; approved: number; rejected: number; pending: number }
     >();
-    const today = new Date();
+    const todayKey = dayKey(new Date().toISOString());
+    const today = new Date(`${todayKey}T12:00:00.000Z`);
     for (let i = 29; i >= 0; i -= 1) {
       const d = new Date(today);
-      d.setDate(today.getDate() - i);
+      d.setUTCDate(today.getUTCDate() - i);
       const key = d.toISOString().slice(0, 10);
       byDayMap.set(key, { date: key, approved: 0, rejected: 0, pending: 0 });
     }
 
     for (const row of rows) {
-      const key = dayKey(row.reviewed_at || row.created_at);
+      // Approvals/rejections on review day; still-pending on submit day.
+      const key = dayKey(
+        row.status === "pending"
+          ? row.created_at
+          : row.reviewed_at || row.created_at
+      );
       const bucket = byDayMap.get(key);
       if (!bucket) continue;
       if (row.status === "approved") bucket.approved += 1;

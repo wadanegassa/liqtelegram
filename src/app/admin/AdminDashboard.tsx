@@ -475,23 +475,42 @@ function BarChart({
   field: "approved" | "rejected" | "pending";
   color: string;
 }) {
-  const max = Math.max(1, ...days.map((d) => d[field]));
+  const values = days.map((d) => d[field]);
+  const max = Math.max(1, ...values);
+  const total = values.reduce((sum, n) => sum + n, 0);
+  const chartHeightPx = 144; // matches h-36
+
   return (
     <div className="card-liq">
-      <h4 className="mb-3 font-semibold">{title}</h4>
-      <div className="flex h-36 items-end gap-0.5">
+      <div className="mb-3 flex items-baseline justify-between gap-2">
+        <h4 className="font-semibold">{title}</h4>
+        <span className="text-xs text-[var(--tg-hint)]">
+          {total} total · max {max}/day
+        </span>
+      </div>
+      <div
+        className="flex items-end gap-[2px] border-b border-[var(--tg-code-border)] pb-0"
+        style={{ height: chartHeightPx }}
+      >
         {days.map((d) => {
           const value = d[field];
-          const height = Math.max(2, Math.round((value / max) * 100));
+          const barPx =
+            value <= 0
+              ? 0
+              : Math.max(4, Math.round((value / max) * chartHeightPx));
           return (
             <div
               key={`${field}-${d.date}`}
-              className="relative flex min-w-0 flex-1 flex-col justify-end"
+              className="flex h-full min-w-0 flex-1 flex-col justify-end"
               title={`${d.date}: ${value}`}
             >
               <div
                 className="w-full rounded-t-sm"
-                style={{ height: `${height}%`, background: color }}
+                style={{
+                  height: barPx,
+                  background: color,
+                  opacity: value > 0 ? 1 : 0.15,
+                }}
               />
             </div>
           );
@@ -502,6 +521,11 @@ function BarChart({
         <span>Last 30 days</span>
         <span>{days[days.length - 1]?.date?.slice(5) || ""}</span>
       </div>
+      {total === 0 ? (
+        <p className="mt-2 text-xs text-[var(--tg-hint)]">
+          No {field} proofs in this period yet.
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -515,19 +539,35 @@ function StatusPie({
   rejected: number;
   pending: number;
 }) {
-  const total = Math.max(1, approved + rejected + pending);
-  const a = (approved / total) * 100;
-  const r = (rejected / total) * 100;
+  const total = approved + rejected + pending;
+  const safeTotal = Math.max(1, total);
+  const a = (approved / safeTotal) * 100;
+  const r = (rejected / safeTotal) * 100;
   return (
     <div className="card-liq">
       <h4 className="mb-3 font-semibold">Status mix</h4>
-      <div
-        className="mx-auto h-40 w-40 rounded-full"
-        style={{
-          background: `conic-gradient(#15803d 0 ${a}%, #b91c1c ${a}% ${a + r}%, #ca8a04 ${a + r}% 100%)`,
-        }}
-        title={`Approved ${approved} · Rejected ${rejected} · Pending ${pending}`}
-      />
+      <div className="relative mx-auto h-40 w-40">
+        <div
+          className="h-full w-full rounded-full"
+          style={{
+            background:
+              total === 0
+                ? "var(--tg-code-border)"
+                : `conic-gradient(#15803d 0 ${a}%, #b91c1c ${a}% ${a + r}%, #ca8a04 ${a + r}% 100%)`,
+          }}
+          title={`Approved ${approved} · Rejected ${rejected} · Pending ${pending}`}
+        />
+        <div className="absolute inset-[28%] flex items-center justify-center rounded-full bg-[var(--tg-bg)] text-center">
+          <div>
+            <p className="font-display text-xl font-semibold leading-none">
+              {total}
+            </p>
+            <p className="mt-1 text-[10px] uppercase tracking-wide text-[var(--tg-hint)]">
+              proofs
+            </p>
+          </div>
+        </div>
+      </div>
       <ul className="mt-4 space-y-1 text-sm">
         <li>
           <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-green-700" />
