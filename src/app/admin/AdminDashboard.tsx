@@ -1142,24 +1142,6 @@ function MoneyAdmin() {
               </div>
             </div>
           </div>
-
-          <div className="border border-[var(--tg-text)] bg-[var(--tg-secondary)] p-4 text-sm leading-relaxed">
-            <p className="font-semibold">Quick guide</p>
-            <ul className="mt-2 space-y-1 text-[var(--tg-hint)]">
-              <li>
-                <strong className="text-[var(--tg-text)]">Company</strong> —
-                ads, tools, fees. Comes out before the split (both pay).
-              </li>
-              <li>
-                <strong className="text-[var(--tg-text)]">Wada / Lemi</strong>{" "}
-                — personal business spend. Only that person’s balance drops.
-              </li>
-              <li>
-                Final number under each name is what they have left after
-                everything.
-              </li>
-            </ul>
-          </div>
         </>
       ) : null}
 
