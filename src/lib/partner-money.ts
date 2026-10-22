@@ -2,7 +2,7 @@ import { isTestAccount } from "@/lib/test-accounts";
 
 export const PARTNERS = [
   { id: "wada" as const, name: "Wada", accent: "#0f766e" },
-  { id: "laemi" as const, name: "Laemi", accent: "#b45309" },
+  { id: "lemi" as const, name: "Lemi", accent: "#b45309" },
 ];
 
 export type PartnerId = (typeof PARTNERS)[number]["id"];
@@ -18,14 +18,14 @@ export type PartnerExpense = {
   created_at: string;
 };
 
-/** Map legacy ids (mw/lemi) to current ids. */
+/** Map legacy ids to current ids. */
 export function normalizePartnerId(
   raw: string | null | undefined
 ): PartnerId | null {
   if (!raw) return null;
   const v = raw.trim().toLowerCase();
   if (v === "wada" || v === "mw") return "wada";
-  if (v === "laemi" || v === "lemi") return "laemi";
+  if (v === "lemi" || v === "laemi") return "lemi";
   return null;
 }
 
@@ -75,7 +75,7 @@ export function summarizePartnerMoney(
 ) {
   let companyEtb = 0;
   let wadaIndividualEtb = 0;
-  let laemiIndividualEtb = 0;
+  let lemiIndividualEtb = 0;
 
   for (const e of expenses) {
     const amount = Number(e.amount_etb) || 0;
@@ -85,13 +85,11 @@ export function summarizePartnerMoney(
     }
     const partner = normalizePartnerId(e.partner);
     if (partner === "wada") wadaIndividualEtb += amount;
-    else if (partner === "laemi") laemiIndividualEtb += amount;
+    else if (partner === "lemi") lemiIndividualEtb += amount;
   }
 
   const poolEtb = incomeEtb - companyEtb;
   const eachShareEtb = poolEtb / 2;
-  const wadaBalanceEtb = eachShareEtb - wadaIndividualEtb;
-  const laemiBalanceEtb = eachShareEtb - laemiIndividualEtb;
 
   return {
     income_etb: incomeEtb,
@@ -102,13 +100,13 @@ export function summarizePartnerMoney(
       id: "wada" as const,
       name: "Wada",
       individual_expenses_etb: wadaIndividualEtb,
-      balance_etb: wadaBalanceEtb,
+      balance_etb: eachShareEtb - wadaIndividualEtb,
     },
-    laemi: {
-      id: "laemi" as const,
-      name: "Laemi",
-      individual_expenses_etb: laemiIndividualEtb,
-      balance_etb: laemiBalanceEtb,
+    lemi: {
+      id: "lemi" as const,
+      name: "Lemi",
+      individual_expenses_etb: lemiIndividualEtb,
+      balance_etb: eachShareEtb - lemiIndividualEtb,
     },
   };
 }

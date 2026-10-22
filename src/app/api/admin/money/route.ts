@@ -82,7 +82,7 @@ export async function GET() {
       summary,
       expenses,
       note:
-        "Income from approved payments. Company costs come out first (shared). Then the rest splits 50/50 for Wada and Laemi. Personal expenses only reduce that person.",
+        "Income from approved payments. Company costs come out first (shared). Then the rest splits 50/50 for Wada and Lemi. Personal expenses only reduce that person.",
     });
   } catch (e) {
     return NextResponse.json(
@@ -121,9 +121,9 @@ export async function POST(request: Request) {
       );
     }
     if (kind === "individual") {
-      if (partnerRaw !== "wada" && partnerRaw !== "laemi") {
+      if (partnerRaw !== "wada" && partnerRaw !== "lemi") {
         return NextResponse.json(
-          { error: "individual expenses need partner wada or laemi" },
+          { error: "individual expenses need partner wada or lemi" },
           { status: 400 }
         );
       }

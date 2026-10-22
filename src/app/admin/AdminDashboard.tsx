@@ -824,7 +824,7 @@ function AnalyticsAdmin() {
 
 function MoneyAdmin() {
   type PartnerBalance = {
-    id: "wada" | "laemi";
+    id: "wada" | "lemi";
     name: string;
     individual_expenses_etb: number;
     balance_etb: number;
@@ -836,13 +836,13 @@ function MoneyAdmin() {
     pool_etb: number;
     each_share_etb: number;
     wada: PartnerBalance;
-    laemi: PartnerBalance;
+    lemi: PartnerBalance;
   };
 
   type MoneyExpense = {
     id: string;
     kind: "company" | "individual";
-    partner: "wada" | "laemi" | null;
+    partner: "wada" | "lemi" | null;
     amount_etb: number;
     note: string;
     spent_at: string;
@@ -860,7 +860,7 @@ function MoneyAdmin() {
   const [expenses, setExpenses] = useState<MoneyExpense[]>([]);
 
   const [kind, setKind] = useState<"company" | "individual">("company");
-  const [partner, setPartner] = useState<"wada" | "laemi">("wada");
+  const [partner, setPartner] = useState<"wada" | "lemi">("wada");
   const [amount, setAmount] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [spentAt, setSpentAt] = useState(
@@ -988,7 +988,7 @@ function MoneyAdmin() {
             Partners
           </p>
           <h3 className="font-display text-2xl font-semibold">
-            Wada & Laemi money
+            Wada & Lemi money
           </h3>
           <p className="mt-1 max-w-2xl text-sm text-[var(--tg-hint)]">
             {note ||
@@ -1035,7 +1035,7 @@ function MoneyAdmin() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2">
-            {[summary.wada, summary.laemi].map((p) => {
+            {[summary.wada, summary.lemi].map((p) => {
               const positive = p.balance_etb >= 0;
               return (
                 <div
@@ -1108,7 +1108,7 @@ function MoneyAdmin() {
                 ads, tools, fees. Comes out before the split (both pay).
               </li>
               <li>
-                <strong className="text-[var(--tg-text)]">Wada / Laemi</strong>{" "}
+                <strong className="text-[var(--tg-text)]">Wada / Lemi</strong>{" "}
                 — personal business spend. Only that person’s balance drops.
               </li>
               <li>
@@ -1161,7 +1161,7 @@ function MoneyAdmin() {
             {(
               [
                 ["wada", "Wada"],
-                ["laemi", "Laemi"],
+                ["lemi", "Lemi"],
               ] as const
             ).map(([id, label]) => (
               <button
@@ -1218,7 +1218,7 @@ function MoneyAdmin() {
             ? "Saving…"
             : kind === "company"
               ? "Add company expense"
-              : `Add ${partner === "wada" ? "Wada" : "Laemi"} expense`}
+              : `Add ${partner === "wada" ? "Wada" : "Lemi"} expense`}
         </button>
       </form>
 
@@ -1273,7 +1273,7 @@ function MoneyAdmin() {
                           ? "Company · both"
                           : row.partner === "wada"
                             ? "Wada only"
-                            : "Laemi only"}
+                            : "Lemi only"}
                       </span>
                     </td>
                     <td className="py-3 pr-3 font-semibold tabular-nums">
