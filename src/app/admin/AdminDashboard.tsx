@@ -835,6 +835,8 @@ function MoneyAdmin() {
     company_expenses_etb: number;
     pool_etb: number;
     each_share_etb: number;
+    together_etb: number;
+    total_individual_expenses_etb: number;
     wada: PartnerBalance;
     lemi: PartnerBalance;
   };
@@ -1098,6 +1100,47 @@ function MoneyAdmin() {
                 </div>
               );
             })}
+          </div>
+
+          <div className="border-2 border-[var(--tg-text)] bg-[var(--tg-bg)] p-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--tg-hint)]">
+                  Together
+                </p>
+                <h4 className="font-display text-xl font-semibold">
+                  Wada + Lemi profit
+                </h4>
+                <p className="mt-1 text-sm text-[var(--tg-hint)]">
+                  Both balances combined after company and personal expenses.
+                </p>
+              </div>
+              <p className="font-display text-4xl font-semibold tabular-nums">
+                {formatEtb(summary.together_etb)}
+              </p>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3 text-sm">
+              <div className="border border-[var(--tg-code-border)] p-3">
+                <p className="text-[11px] text-[var(--tg-hint)]">Wada</p>
+                <p className="font-semibold tabular-nums">
+                  {formatEtb(summary.wada.balance_etb)}
+                </p>
+              </div>
+              <div className="border border-[var(--tg-code-border)] p-3">
+                <p className="text-[11px] text-[var(--tg-hint)]">Lemi</p>
+                <p className="font-semibold tabular-nums">
+                  {formatEtb(summary.lemi.balance_etb)}
+                </p>
+              </div>
+              <div className="border border-[var(--tg-code-border)] p-3">
+                <p className="text-[11px] text-[var(--tg-hint)]">
+                  All personal spend
+                </p>
+                <p className="font-semibold tabular-nums">
+                  − {formatEtb(summary.total_individual_expenses_etb)}
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="border border-[var(--tg-text)] bg-[var(--tg-secondary)] p-4 text-sm leading-relaxed">

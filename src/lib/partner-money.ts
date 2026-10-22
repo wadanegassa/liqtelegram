@@ -90,23 +90,28 @@ export function summarizePartnerMoney(
 
   const poolEtb = incomeEtb - companyEtb;
   const eachShareEtb = poolEtb / 2;
+  const wadaBalanceEtb = eachShareEtb - wadaIndividualEtb;
+  const lemiBalanceEtb = eachShareEtb - lemiIndividualEtb;
 
   return {
     income_etb: incomeEtb,
     company_expenses_etb: companyEtb,
     pool_etb: poolEtb,
     each_share_etb: eachShareEtb,
+    /** Wada + Lemi balances after all expenses */
+    together_etb: wadaBalanceEtb + lemiBalanceEtb,
+    total_individual_expenses_etb: wadaIndividualEtb + lemiIndividualEtb,
     wada: {
       id: "wada" as const,
       name: "Wada",
       individual_expenses_etb: wadaIndividualEtb,
-      balance_etb: eachShareEtb - wadaIndividualEtb,
+      balance_etb: wadaBalanceEtb,
     },
     lemi: {
       id: "lemi" as const,
       name: "Lemi",
       individual_expenses_etb: lemiIndividualEtb,
-      balance_etb: eachShareEtb - lemiIndividualEtb,
+      balance_etb: lemiBalanceEtb,
     },
   };
 }
