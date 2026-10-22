@@ -1,21 +1,42 @@
 -- Partner money / expenses (admin Money tab)
--- Run in Supabase → SQL Editor
+-- Safe to re-run in Supabase → SQL Editor
 
 create table if not exists public.partner_expenses (
   id uuid primary key default gen_random_uuid(),
-  -- company = shared (reduces both); individual = only that partner
-  kind text not null check (kind in ('company', 'individual')),
-  -- required when kind = individual: 'mw' | 'lemi'
-  partner text check (partner is null or partner in ('mw', 'lemi')),
-  amount_etb numeric(12, 2) not null check (amount_etb > 0),
+  kind text not null,
+  partner text,
+  amount_etb numeric(12, 2) not null,
   note text not null default '',
   spent_at date not null default (timezone('Africa/Addis_Ababa', now()))::date,
-  created_at timestamptz not null default now(),
-  constraint partner_expenses_partner_check check (
-    (kind = 'company' and partner is null)
-    or (kind = 'individual' and partner is not null)
-  )
+  created_at timestamptz not null default now()
 );
+
+-- Clean up old/conflicting checks from a previous partial run
+alter table public.partner_expenses
+  drop constraint if exists partner_expenses_partner_check;
+alter table public.partner_expenses
+  drop constraint if exists partner_expenses_kind_check;
+alter table public.partner_expenses
+  drop constraint if exists partner_expenses_amount_check;
+alter table public.partner_expenses
+  drop constraint if exists partner_expenses_partner_kind_check;
+alter table public.partner_expenses
+  drop constraint if exists partner_expenses_amount_positive;
+
+alter table public.partner_expenses
+  add constraint partner_expenses_kind_check
+  check (kind in ('company', 'individual'));
+
+alter table public.partner_expenses
+  add constraint partner_expenses_amount_positive
+  check (amount_etb > 0);
+
+alter table public.partner_expenses
+  add constraint partner_expenses_partner_kind_check
+  check (
+    (kind = 'company' and partner is null)
+    or (kind = 'individual' and partner in ('mw', 'lemi'))
+  );
 
 create index if not exists partner_expenses_kind_idx
   on public.partner_expenses(kind);
@@ -25,4 +46,3 @@ create index if not exists partner_expenses_spent_at_idx
   on public.partner_expenses(spent_at desc);
 
 alter table public.partner_expenses enable row level security;
--- Admin API uses service role (bypasses RLS).
