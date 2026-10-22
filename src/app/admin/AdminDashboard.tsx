@@ -823,29 +823,26 @@ function AnalyticsAdmin() {
 }
 
 function MoneyAdmin() {
+  type PartnerBalance = {
+    id: "wada" | "laemi";
+    name: string;
+    individual_expenses_etb: number;
+    balance_etb: number;
+  };
+
   type MoneySummary = {
     income_etb: number;
     company_expenses_etb: number;
     pool_etb: number;
     each_share_etb: number;
-    mw: {
-      id: "mw";
-      name: string;
-      individual_expenses_etb: number;
-      balance_etb: number;
-    };
-    lemi: {
-      id: "lemi";
-      name: string;
-      individual_expenses_etb: number;
-      balance_etb: number;
-    };
+    wada: PartnerBalance;
+    laemi: PartnerBalance;
   };
 
   type MoneyExpense = {
     id: string;
     kind: "company" | "individual";
-    partner: "mw" | "lemi" | null;
+    partner: "wada" | "laemi" | null;
     amount_etb: number;
     note: string;
     spent_at: string;
@@ -863,7 +860,7 @@ function MoneyAdmin() {
   const [expenses, setExpenses] = useState<MoneyExpense[]>([]);
 
   const [kind, setKind] = useState<"company" | "individual">("company");
-  const [partner, setPartner] = useState<"mw" | "lemi">("mw");
+  const [partner, setPartner] = useState<"wada" | "laemi">("wada");
   const [amount, setAmount] = useState("");
   const [expenseNote, setExpenseNote] = useState("");
   const [spentAt, setSpentAt] = useState(
@@ -960,128 +957,241 @@ function MoneyAdmin() {
     return <p className="text-sm text-[var(--tg-hint)]">Loading money…</p>;
   }
 
+  const flowSteps = summary
+    ? [
+        {
+          label: "1. Money in",
+          value: formatEtb(summary.income_etb),
+          detail: `${approvedCount} approved × ${formatEtb(price)}`,
+          tone: "border-emerald-700/40 bg-emerald-50 dark:bg-emerald-950/30",
+        },
+        {
+          label: "2. Company costs",
+          value: `− ${formatEtb(summary.company_expenses_etb)}`,
+          detail: "Shared — taken from both",
+          tone: "border-rose-700/40 bg-rose-50 dark:bg-rose-950/20",
+        },
+        {
+          label: "3. Left to split",
+          value: formatEtb(summary.pool_etb),
+          detail: `50 / 50 → ${formatEtb(summary.each_share_etb)} each`,
+          tone: "border-sky-700/40 bg-sky-50 dark:bg-sky-950/20",
+        },
+      ]
+    : [];
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-display text-lg font-semibold">
-          Partner money (MW + Lemi)
-        </h3>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--tg-hint)]">
+            Partners
+          </p>
+          <h3 className="font-display text-2xl font-semibold">
+            Wada & Laemi money
+          </h3>
+          <p className="mt-1 max-w-2xl text-sm text-[var(--tg-hint)]">
+            {note ||
+              "See income, take out company costs, then split what is left. Personal spending only hits that person."}
+          </p>
+        </div>
         <button
           type="button"
-          className="btn-ghost ml-auto text-sm"
+          className="btn-ghost text-sm"
           onClick={() => void load()}
         >
           Refresh
         </button>
       </div>
-      {note ? <p className="text-sm text-[var(--tg-hint)]">{note}</p> : null}
+
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
       {hint ? (
-        <p className="text-sm text-amber-800">
-          Setup: run <code>supabase/partner_money.sql</code> in Supabase SQL
-          Editor once.
-        </p>
+        <div className="rounded-none border border-amber-700/50 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+          First-time setup: run{" "}
+          <code className="font-mono">supabase/partner_money.sql</code> in
+          Supabase SQL Editor, then refresh.
+        </div>
       ) : null}
 
       {summary ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="card-liq">
-              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
-                Income (approved)
-              </p>
-              <p className="mt-1 font-display text-2xl font-semibold">
-                {formatEtb(summary.income_etb)}
-              </p>
-              <p className="mt-1 text-xs text-[var(--tg-hint)]">
-                {approvedCount} × {formatEtb(price)}
-              </p>
-            </div>
-            <div className="card-liq">
-              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
-                Company expenses
-              </p>
-              <p className="mt-1 font-display text-2xl font-semibold">
-                {formatEtb(summary.company_expenses_etb)}
-              </p>
-              <p className="mt-1 text-xs text-[var(--tg-hint)]">
-                Shared — reduces both
-              </p>
-            </div>
-            <div className="card-liq">
-              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
-                Pool after company
-              </p>
-              <p className="mt-1 font-display text-2xl font-semibold">
-                {formatEtb(summary.pool_etb)}
-              </p>
-              <p className="mt-1 text-xs text-[var(--tg-hint)]">
-                Split 50/50 = {formatEtb(summary.each_share_etb)} each
-              </p>
-            </div>
-            <div className="card-liq">
-              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
-                How it works
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-[var(--tg-hint)]">
-                Company expense → both. Individual expense → only that person.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            {[summary.mw, summary.lemi].map((p) => (
-              <div key={p.id} className="card-liq">
-                <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
-                  {p.name} balance
+          <div className="grid gap-3 lg:grid-cols-3">
+            {flowSteps.map((step) => (
+              <div
+                key={step.label}
+                className={`border px-4 py-4 ${step.tone}`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--tg-hint)]">
+                  {step.label}
                 </p>
-                <p className="mt-1 font-display text-2xl font-semibold">
-                  {formatEtb(p.balance_etb)}
+                <p className="mt-2 font-display text-2xl font-semibold tabular-nums">
+                  {step.value}
                 </p>
                 <p className="mt-1 text-xs text-[var(--tg-hint)]">
-                  Share {formatEtb(summary.each_share_etb)} − individual{" "}
-                  {formatEtb(p.individual_expenses_etb)}
+                  {step.detail}
                 </p>
               </div>
             ))}
           </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            {[summary.wada, summary.laemi].map((p) => {
+              const positive = p.balance_etb >= 0;
+              return (
+                <div
+                  key={p.id}
+                  className="relative overflow-hidden border border-[var(--tg-text)] bg-[var(--tg-bg)] p-4"
+                >
+                  <div
+                    className="absolute inset-y-0 left-0 w-1.5"
+                    style={{
+                      background: p.id === "wada" ? "#0f766e" : "#b45309",
+                    }}
+                  />
+                  <div className="pl-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.18em] text-[var(--tg-hint)]">
+                          Partner
+                        </p>
+                        <h4 className="font-display text-xl font-semibold">
+                          {p.name}
+                        </h4>
+                      </div>
+                      <span
+                        className={`border px-2 py-1 text-xs font-semibold ${
+                          positive
+                            ? "border-emerald-700 text-emerald-800 dark:text-emerald-300"
+                            : "border-rose-700 text-rose-800 dark:text-rose-300"
+                        }`}
+                      >
+                        {positive ? "In the clear" : "Owes / overspent"}
+                      </span>
+                    </div>
+
+                    <p className="mt-4 text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                      Final balance
+                    </p>
+                    <p className="font-display text-3xl font-semibold tabular-nums">
+                      {formatEtb(p.balance_etb)}
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                      <div className="border border-[var(--tg-code-border)] p-2">
+                        <p className="text-[11px] text-[var(--tg-hint)]">
+                          50% share
+                        </p>
+                        <p className="font-semibold tabular-nums">
+                          {formatEtb(summary.each_share_etb)}
+                        </p>
+                      </div>
+                      <div className="border border-[var(--tg-code-border)] p-2">
+                        <p className="text-[11px] text-[var(--tg-hint)]">
+                          Personal spent
+                        </p>
+                        <p className="font-semibold tabular-nums">
+                          − {formatEtb(p.individual_expenses_etb)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="border border-[var(--tg-text)] bg-[var(--tg-secondary)] p-4 text-sm leading-relaxed">
+            <p className="font-semibold">Quick guide</p>
+            <ul className="mt-2 space-y-1 text-[var(--tg-hint)]">
+              <li>
+                <strong className="text-[var(--tg-text)]">Company</strong> —
+                ads, tools, fees. Comes out before the split (both pay).
+              </li>
+              <li>
+                <strong className="text-[var(--tg-text)]">Wada / Laemi</strong>{" "}
+                — personal business spend. Only that person’s balance drops.
+              </li>
+              <li>
+                Final number under each name is what they have left after
+                everything.
+              </li>
+            </ul>
+          </div>
         </>
       ) : null}
 
-      <form onSubmit={onAdd} className="card-liq space-y-3">
-        <h4 className="font-semibold">Add expense</h4>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Type">
-            <select
-              className="input-liq"
-              value={kind}
-              onChange={(e) =>
-                setKind(e.target.value as "company" | "individual")
-              }
-            >
-              <option value="company">Company (both)</option>
-              <option value="individual">Individual (one person)</option>
-            </select>
-          </Field>
-          {kind === "individual" ? (
-            <Field label="Whose expense">
-              <select
-                className="input-liq"
-                value={partner}
-                onChange={(e) => setPartner(e.target.value as "mw" | "lemi")}
+      <form
+        onSubmit={onAdd}
+        className="border border-[var(--tg-text)] bg-[var(--tg-bg)] p-4 space-y-4"
+      >
+        <div>
+          <h4 className="font-display text-lg font-semibold">Add an expense</h4>
+          <p className="mt-1 text-sm text-[var(--tg-hint)]">
+            Pick company (both) or one partner, then save.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className={`border px-3 py-2 text-sm ${
+              kind === "company"
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-[var(--tg-text)]"
+            }`}
+            onClick={() => setKind("company")}
+          >
+            Company (both)
+          </button>
+          <button
+            type="button"
+            className={`border px-3 py-2 text-sm ${
+              kind === "individual"
+                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                : "border-[var(--tg-text)]"
+            }`}
+            onClick={() => setKind("individual")}
+          >
+            Individual (one person)
+          </button>
+        </div>
+
+        {kind === "individual" ? (
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["wada", "Wada"],
+                ["laemi", "Laemi"],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`border px-3 py-2 text-sm ${
+                  partner === id
+                    ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
+                    : "border-[var(--tg-text)]"
+                }`}
+                onClick={() => setPartner(id)}
               >
-                <option value="mw">MW</option>
-                <option value="lemi">Lemi</option>
-              </select>
-            </Field>
-          ) : null}
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--tg-hint)]">
+            This cost will reduce the shared pool before the 50/50 split.
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Amount (ETB)">
             <input
               className="input-liq"
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="500"
+              placeholder="e.g. 500"
               required
             />
           </Field>
@@ -1095,28 +1205,36 @@ function MoneyAdmin() {
             />
           </Field>
         </div>
-        <Field label="Note">
+        <Field label="What was it for?">
           <input
             className="input-liq"
             value={expenseNote}
             onChange={(e) => setExpenseNote(e.target.value)}
-            placeholder="Ads, Telebirr fee, transport…"
+            placeholder="Ads, Telebirr fee, transport, lunch for work…"
           />
         </Field>
         <button className="btn-liq" type="submit" disabled={busyLocal}>
-          {busyLocal ? "Saving…" : "Add expense"}
+          {busyLocal
+            ? "Saving…"
+            : kind === "company"
+              ? "Add company expense"
+              : `Add ${partner === "wada" ? "Wada" : "Laemi"} expense`}
         </button>
       </form>
 
-      <div className="card-liq space-y-3">
-        <h4 className="font-semibold">Expense list</h4>
+      <div className="border border-[var(--tg-text)] bg-[var(--tg-bg)] p-4 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h4 className="font-display text-lg font-semibold">All expenses</h4>
+          <p className="text-xs text-[var(--tg-hint)]">
+            {expenses.length} recorded
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--tg-text)] text-xs uppercase tracking-wide text-[var(--tg-hint)]">
                 <th className="py-2 pr-3 font-medium">Date</th>
-                <th className="py-2 pr-3 font-medium">Type</th>
-                <th className="py-2 pr-3 font-medium">Partner</th>
+                <th className="py-2 pr-3 font-medium">Who pays</th>
                 <th className="py-2 pr-3 font-medium">Amount</th>
                 <th className="py-2 pr-3 font-medium">Note</th>
                 <th className="py-2 font-medium" />
@@ -1126,10 +1244,10 @@ function MoneyAdmin() {
               {expenses.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
-                    className="py-6 text-center text-[var(--tg-hint)]"
+                    colSpan={5}
+                    className="py-8 text-center text-[var(--tg-hint)]"
                   >
-                    No expenses yet.
+                    No expenses yet — add the first one above.
                   </td>
                 </tr>
               ) : (
@@ -1138,20 +1256,33 @@ function MoneyAdmin() {
                     key={row.id}
                     className="border-b border-[var(--tg-code-border)]"
                   >
-                    <td className="py-2 pr-3 text-xs">{row.spent_at}</td>
-                    <td className="py-2 pr-3 capitalize">{row.kind}</td>
-                    <td className="py-2 pr-3">
-                      {row.kind === "company"
-                        ? "Both"
-                        : row.partner === "mw"
-                          ? "MW"
-                          : "Lemi"}
+                    <td className="py-3 pr-3 text-xs tabular-nums">
+                      {row.spent_at}
                     </td>
-                    <td className="py-2 pr-3">{formatEtb(row.amount_etb)}</td>
-                    <td className="py-2 pr-3 text-[var(--tg-hint)]">
+                    <td className="py-3 pr-3">
+                      <span
+                        className={`inline-block border px-2 py-0.5 text-xs font-medium ${
+                          row.kind === "company"
+                            ? "border-[var(--tg-text)]"
+                            : row.partner === "wada"
+                              ? "border-teal-700 text-teal-800 dark:text-teal-300"
+                              : "border-amber-700 text-amber-800 dark:text-amber-300"
+                        }`}
+                      >
+                        {row.kind === "company"
+                          ? "Company · both"
+                          : row.partner === "wada"
+                            ? "Wada only"
+                            : "Laemi only"}
+                      </span>
+                    </td>
+                    <td className="py-3 pr-3 font-semibold tabular-nums">
+                      {formatEtb(row.amount_etb)}
+                    </td>
+                    <td className="py-3 pr-3 text-[var(--tg-hint)]">
                       {row.note || "—"}
                     </td>
-                    <td className="py-2 text-right">
+                    <td className="py-3 text-right">
                       <button
                         type="button"
                         className="btn-ghost text-xs"

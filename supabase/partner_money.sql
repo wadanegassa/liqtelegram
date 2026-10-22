@@ -11,7 +11,10 @@ create table if not exists public.partner_expenses (
   created_at timestamptz not null default now()
 );
 
--- Clean up old/conflicting checks from a previous partial run
+-- Rename legacy partner ids if any rows exist
+update public.partner_expenses set partner = 'wada' where partner in ('mw', 'MW', 'Wada');
+update public.partner_expenses set partner = 'laemi' where partner in ('lemi', 'Lemi', 'laemi', 'Laemi');
+
 alter table public.partner_expenses
   drop constraint if exists partner_expenses_partner_check;
 alter table public.partner_expenses
@@ -35,7 +38,7 @@ alter table public.partner_expenses
   add constraint partner_expenses_partner_kind_check
   check (
     (kind = 'company' and partner is null)
-    or (kind = 'individual' and partner in ('mw', 'lemi'))
+    or (kind = 'individual' and partner in ('wada', 'laemi'))
   );
 
 create index if not exists partner_expenses_kind_idx

@@ -4,6 +4,7 @@ import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   PARTNERS,
   countApprovedPayments,
+  normalizePartnerId,
   parseEtb,
   summarizePartnerMoney,
   type ExpenseKind,
@@ -63,7 +64,9 @@ export async function GET() {
     const expenses = (expensesRes.data || []).map((row) => ({
       id: String(row.id),
       kind: row.kind as ExpenseKind,
-      partner: (row.partner as PartnerId | null) || null,
+      partner: normalizePartnerId(
+        row.partner == null ? null : String(row.partner)
+      ),
       amount_etb: Number(row.amount_etb) || 0,
       note: String(row.note || ""),
       spent_at: String(row.spent_at),
@@ -79,7 +82,7 @@ export async function GET() {
       summary,
       expenses,
       note:
-        "Income = approved proofs × price. Company expenses reduce both shares. Individual expenses reduce only that partner.",
+        "Income from approved payments. Company costs come out first (shared). Then the rest splits 50/50 for Wada and Laemi. Personal expenses only reduce that person.",
     });
   } catch (e) {
     return NextResponse.json(
@@ -118,9 +121,9 @@ export async function POST(request: Request) {
       );
     }
     if (kind === "individual") {
-      if (partnerRaw !== "mw" && partnerRaw !== "lemi") {
+      if (partnerRaw !== "wada" && partnerRaw !== "laemi") {
         return NextResponse.json(
-          { error: "individual expenses need partner mw or lemi" },
+          { error: "individual expenses need partner wada or laemi" },
           { status: 400 }
         );
       }
