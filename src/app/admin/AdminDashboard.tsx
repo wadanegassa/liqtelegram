@@ -17,6 +17,7 @@ import { DEFAULT_BOT_SETTINGS } from "@/lib/bot-settings";
 
 type Tab =
   | "analytics"
+  | "money"
   | "courses"
   | "chapters"
   | "exams"
@@ -248,13 +249,14 @@ export function AdminDashboard() {
   return (
     <AppShell
       title="Content admin"
-      subtitle="Payments analytics, courses, and bot texts. Revenue counts approved proofs only."
+      subtitle="Payments, partner money split, courses, and bot texts."
       backHref="/"
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         {(
           [
             ["analytics", "Analytics"],
+            ["money", "Money"],
             ["courses", "Courses"],
             ["chapters", "Chapters"],
             ["exams", "Exams"],
@@ -291,6 +293,7 @@ export function AdminDashboard() {
       ) : null}
 
       {tab === "analytics" ? <AnalyticsAdmin /> : null}
+      {tab === "money" ? <MoneyAdmin /> : null}
 
       {tab === "courses" ? (
         <CoursesAdmin
@@ -807,6 +810,356 @@ function AnalyticsAdmin() {
                       {row.status === "approved"
                         ? formatEtb(row.estimated_amount_etb)
                         : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoneyAdmin() {
+  type MoneySummary = {
+    income_etb: number;
+    company_expenses_etb: number;
+    pool_etb: number;
+    each_share_etb: number;
+    mw: {
+      id: "mw";
+      name: string;
+      individual_expenses_etb: number;
+      balance_etb: number;
+    };
+    lemi: {
+      id: "lemi";
+      name: string;
+      individual_expenses_etb: number;
+      balance_etb: number;
+    };
+  };
+
+  type MoneyExpense = {
+    id: string;
+    kind: "company" | "individual";
+    partner: "mw" | "lemi" | null;
+    amount_etb: number;
+    note: string;
+    spent_at: string;
+    created_at: string;
+  };
+
+  const [loading, setLoading] = useState(true);
+  const [busyLocal, setBusyLocal] = useState(false);
+  const [error, setError] = useState("");
+  const [hint, setHint] = useState("");
+  const [note, setNote] = useState("");
+  const [approvedCount, setApprovedCount] = useState(0);
+  const [price, setPrice] = useState(0);
+  const [summary, setSummary] = useState<MoneySummary | null>(null);
+  const [expenses, setExpenses] = useState<MoneyExpense[]>([]);
+
+  const [kind, setKind] = useState<"company" | "individual">("company");
+  const [partner, setPartner] = useState<"mw" | "lemi">("mw");
+  const [amount, setAmount] = useState("");
+  const [expenseNote, setExpenseNote] = useState("");
+  const [spentAt, setSpentAt] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    setHint("");
+    try {
+      const res = await fetch("/api/admin/money", {
+        credentials: "same-origin",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          [json.error, json.hint].filter(Boolean).join(" — ") ||
+            "Could not load money"
+        );
+        setHint(json.hint || "");
+        return;
+      }
+      setSummary(json.summary || null);
+      setExpenses(json.expenses || []);
+      setApprovedCount(Number(json.approved_count) || 0);
+      setPrice(Number(json.payment_amount_etb) || 0);
+      setNote(json.note || "");
+    } catch {
+      setError("Could not load money");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function onAdd(e: FormEvent) {
+    e.preventDefault();
+    setBusyLocal(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/money", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          partner: kind === "individual" ? partner : null,
+          amount_etb: amount,
+          note: expenseNote,
+          spent_at: spentAt,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(
+          [json.error, json.hint].filter(Boolean).join(" — ") ||
+            "Could not save expense"
+        );
+        setHint(json.hint || "");
+        return;
+      }
+      setAmount("");
+      setExpenseNote("");
+      await load();
+    } finally {
+      setBusyLocal(false);
+    }
+  }
+
+  async function onDelete(id: string) {
+    if (!confirm("Delete this expense?")) return;
+    setBusyLocal(true);
+    try {
+      const res = await fetch(`/api/admin/money/${id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Could not delete");
+        return;
+      }
+      await load();
+    } finally {
+      setBusyLocal(false);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-[var(--tg-hint)]">Loading money…</p>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-display text-lg font-semibold">
+          Partner money (MW + Lemi)
+        </h3>
+        <button
+          type="button"
+          className="btn-ghost ml-auto text-sm"
+          onClick={() => void load()}
+        >
+          Refresh
+        </button>
+      </div>
+      {note ? <p className="text-sm text-[var(--tg-hint)]">{note}</p> : null}
+      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      {hint ? (
+        <p className="text-sm text-amber-800">
+          Setup: run <code>supabase/partner_money.sql</code> in Supabase SQL
+          Editor once.
+        </p>
+      ) : null}
+
+      {summary ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="card-liq">
+              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                Income (approved)
+              </p>
+              <p className="mt-1 font-display text-2xl font-semibold">
+                {formatEtb(summary.income_etb)}
+              </p>
+              <p className="mt-1 text-xs text-[var(--tg-hint)]">
+                {approvedCount} × {formatEtb(price)}
+              </p>
+            </div>
+            <div className="card-liq">
+              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                Company expenses
+              </p>
+              <p className="mt-1 font-display text-2xl font-semibold">
+                {formatEtb(summary.company_expenses_etb)}
+              </p>
+              <p className="mt-1 text-xs text-[var(--tg-hint)]">
+                Shared — reduces both
+              </p>
+            </div>
+            <div className="card-liq">
+              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                Pool after company
+              </p>
+              <p className="mt-1 font-display text-2xl font-semibold">
+                {formatEtb(summary.pool_etb)}
+              </p>
+              <p className="mt-1 text-xs text-[var(--tg-hint)]">
+                Split 50/50 = {formatEtb(summary.each_share_etb)} each
+              </p>
+            </div>
+            <div className="card-liq">
+              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                How it works
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-[var(--tg-hint)]">
+                Company expense → both. Individual expense → only that person.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[summary.mw, summary.lemi].map((p) => (
+              <div key={p.id} className="card-liq">
+                <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                  {p.name} balance
+                </p>
+                <p className="mt-1 font-display text-2xl font-semibold">
+                  {formatEtb(p.balance_etb)}
+                </p>
+                <p className="mt-1 text-xs text-[var(--tg-hint)]">
+                  Share {formatEtb(summary.each_share_etb)} − individual{" "}
+                  {formatEtb(p.individual_expenses_etb)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <form onSubmit={onAdd} className="card-liq space-y-3">
+        <h4 className="font-semibold">Add expense</h4>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Type">
+            <select
+              className="input-liq"
+              value={kind}
+              onChange={(e) =>
+                setKind(e.target.value as "company" | "individual")
+              }
+            >
+              <option value="company">Company (both)</option>
+              <option value="individual">Individual (one person)</option>
+            </select>
+          </Field>
+          {kind === "individual" ? (
+            <Field label="Whose expense">
+              <select
+                className="input-liq"
+                value={partner}
+                onChange={(e) => setPartner(e.target.value as "mw" | "lemi")}
+              >
+                <option value="mw">MW</option>
+                <option value="lemi">Lemi</option>
+              </select>
+            </Field>
+          ) : null}
+          <Field label="Amount (ETB)">
+            <input
+              className="input-liq"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="500"
+              required
+            />
+          </Field>
+          <Field label="Date">
+            <input
+              className="input-liq"
+              type="date"
+              value={spentAt}
+              onChange={(e) => setSpentAt(e.target.value)}
+              required
+            />
+          </Field>
+        </div>
+        <Field label="Note">
+          <input
+            className="input-liq"
+            value={expenseNote}
+            onChange={(e) => setExpenseNote(e.target.value)}
+            placeholder="Ads, Telebirr fee, transport…"
+          />
+        </Field>
+        <button className="btn-liq" type="submit" disabled={busyLocal}>
+          {busyLocal ? "Saving…" : "Add expense"}
+        </button>
+      </form>
+
+      <div className="card-liq space-y-3">
+        <h4 className="font-semibold">Expense list</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--tg-text)] text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                <th className="py-2 pr-3 font-medium">Date</th>
+                <th className="py-2 pr-3 font-medium">Type</th>
+                <th className="py-2 pr-3 font-medium">Partner</th>
+                <th className="py-2 pr-3 font-medium">Amount</th>
+                <th className="py-2 pr-3 font-medium">Note</th>
+                <th className="py-2 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {expenses.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="py-6 text-center text-[var(--tg-hint)]"
+                  >
+                    No expenses yet.
+                  </td>
+                </tr>
+              ) : (
+                expenses.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[var(--tg-code-border)]"
+                  >
+                    <td className="py-2 pr-3 text-xs">{row.spent_at}</td>
+                    <td className="py-2 pr-3 capitalize">{row.kind}</td>
+                    <td className="py-2 pr-3">
+                      {row.kind === "company"
+                        ? "Both"
+                        : row.partner === "mw"
+                          ? "MW"
+                          : "Lemi"}
+                    </td>
+                    <td className="py-2 pr-3">{formatEtb(row.amount_etb)}</td>
+                    <td className="py-2 pr-3 text-[var(--tg-hint)]">
+                      {row.note || "—"}
+                    </td>
+                    <td className="py-2 text-right">
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        disabled={busyLocal}
+                        onClick={() => void onDelete(row.id)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))
