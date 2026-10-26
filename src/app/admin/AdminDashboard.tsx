@@ -782,7 +782,9 @@ function AnalyticsAdmin() {
               title: liqPay?.label || "LIQ Premium subscription",
               revenue: liqPay?.revenue_etb ?? 0,
               lines: [
-                `Approved ${liqPay?.approved ?? 0}`,
+                liqPay?.configured === false
+                  ? "Not connected — set LIQ Supabase env on Vercel"
+                  : `Approved ${liqPay?.approved ?? 0}`,
                 `Pending ${liqPay?.pending ?? 0}`,
                 liqPay?.count_from
                   ? `From ${new Date(liqPay.count_from).toLocaleString()}`
@@ -795,7 +797,9 @@ function AnalyticsAdmin() {
               title: liqAct?.label || "LIQ Academy activation",
               revenue: 0,
               lines: [
-                `${liqAct?.count ?? 0} activations`,
+                liqAct?.configured === false
+                  ? "Not connected"
+                  : `${liqAct?.count ?? 0} activations`,
                 "0 ETB — not a payment",
               ],
             },
