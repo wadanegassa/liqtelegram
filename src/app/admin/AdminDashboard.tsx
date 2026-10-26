@@ -427,6 +427,29 @@ type AnalyticsSummary = {
   revenue_etb: number;
 };
 
+type AnalyticsSourceBlock = {
+  label: string;
+  pending?: number;
+  approved?: number;
+  rejected?: number;
+  paying_users?: number;
+  unique_submitters?: number;
+  payment_amount_etb?: number;
+  revenue_etb: number;
+  total_requests?: number;
+  count?: number;
+  configured?: boolean;
+  count_from?: string | null;
+  error?: string | null;
+  note?: string;
+};
+
+type AnalyticsSources = {
+  telegram_group: AnalyticsSourceBlock;
+  liq_subscription: AnalyticsSourceBlock;
+  liq_activation: AnalyticsSourceBlock;
+};
+
 type AnalyticsDay = {
   date: string;
   approved: number;
@@ -436,22 +459,37 @@ type AnalyticsDay = {
 
 type AnalyticsRecent = {
   id: string;
-  telegram_user_id: number;
+  source?: "telegram_group" | "liq_subscription";
+  source_label?: string;
+  display_name?: string | null;
+  telegram_user_id: number | null;
   username: string | null;
   first_name: string | null;
   last_name: string | null;
+  plan_label?: string | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
   reviewed_at: string | null;
   estimated_amount_etb: number;
 };
 
+type AnalyticsActivation = {
+  id: string;
+  telegram_user_id: number | null;
+  telegram_username: string | null;
+  months: number;
+  granted_expires_at: string | null;
+  created_at: string;
+};
+
 function analyticsDisplayName(row: AnalyticsRecent) {
+  if (row.display_name) return row.display_name;
   const name = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
   if (name && row.username) return `${name} (@${row.username})`;
   if (name) return name;
   if (row.username) return `@${row.username}`;
-  return `ID ${row.telegram_user_id}`;
+  if (row.telegram_user_id != null) return `ID ${row.telegram_user_id}`;
+  return "—";
 }
 
 function formatEtb(n: number) {
@@ -594,10 +632,15 @@ function AnalyticsAdmin() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
+  const [sources, setSources] = useState<AnalyticsSources | null>(null);
   const [byDay, setByDay] = useState<AnalyticsDay[]>([]);
   const [recent, setRecent] = useState<AnalyticsRecent[]>([]);
+  const [activations, setActivations] = useState<AnalyticsActivation[]>([]);
   const [statusFilter, setStatusFilter] = useState<
     "all" | "approved" | "rejected" | "pending"
+  >("all");
+  const [sourceFilter, setSourceFilter] = useState<
+    "all" | "telegram_group" | "liq_subscription"
   >("all");
 
   const load = useCallback(async () => {
@@ -616,8 +659,10 @@ function AnalyticsAdmin() {
         return;
       }
       setSummary(json.summary || null);
+      setSources(json.sources || null);
       setByDay(json.by_day || []);
       setRecent(json.recent || []);
+      setActivations(json.activations_recent || []);
       setNote(json.note || "");
     } catch {
       setError("Could not load analytics");
@@ -631,9 +676,12 @@ function AnalyticsAdmin() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    if (statusFilter === "all") return recent;
-    return recent.filter((r) => r.status === statusFilter);
-  }, [recent, statusFilter]);
+    return recent.filter((r) => {
+      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (sourceFilter !== "all" && r.source !== sourceFilter) return false;
+      return true;
+    });
+  }, [recent, statusFilter, sourceFilter]);
 
   if (loading) {
     return <p className="text-sm text-[var(--tg-hint)]">Loading analytics…</p>;
@@ -656,33 +704,47 @@ function AnalyticsAdmin() {
     );
   }
 
+  const tg = sources?.telegram_group;
+  const liqPay = sources?.liq_subscription;
+  const liqAct = sources?.liq_activation;
+
   const cards: Array<{ label: string; value: string; hint?: string }> = [
     {
-      label: "Revenue (approved)",
+      label: "Combined revenue",
       value: formatEtb(summary.revenue_etb),
-      hint: `${formatEtb(summary.payment_amount_etb)} × ${summary.approved} approvals`,
+      hint: [
+        tg ? `TG ${formatEtb(tg.revenue_etb)}` : null,
+        liqPay ? `LIQ ${formatEtb(liqPay.revenue_etb)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" + "),
     },
     {
-      label: "Paying users",
-      value: String(summary.paying_users),
-      hint: "Unique users with ≥1 approved proof",
+      label: "Telegram group",
+      value: formatEtb(tg?.revenue_etb ?? 0),
+      hint: tg
+        ? `${formatEtb(tg.payment_amount_etb || 0)} × ${tg.approved || 0}`
+        : undefined,
     },
     {
-      label: "Approved",
+      label: "LIQ subscriptions",
+      value: formatEtb(liqPay?.revenue_etb ?? 0),
+      hint: liqPay
+        ? `${liqPay.approved || 0} approved from baseline`
+        : "Not connected",
+    },
+    {
+      label: "Academy activations",
+      value: String(liqAct?.count ?? 0),
+      hint: "Not money — separate from subscriptions",
+    },
+    {
+      label: "Approved (all money)",
       value: String(summary.approved),
-    },
-    {
-      label: "Rejected",
-      value: String(summary.rejected),
     },
     {
       label: "Pending",
       value: String(summary.pending),
-    },
-    {
-      label: "All proofs",
-      value: String(summary.total_requests),
-      hint: `${summary.unique_submitters} unique submitters`,
     },
   ];
 
@@ -700,6 +762,59 @@ function AnalyticsAdmin() {
       </div>
       {note ? (
         <p className="text-sm text-[var(--tg-hint)]">{note}</p>
+      ) : null}
+
+      {sources ? (
+        <div className="grid gap-3 lg:grid-cols-3">
+          {[
+            {
+              key: "tg",
+              title: tg?.label || "Telegram paid group",
+              revenue: tg?.revenue_etb ?? 0,
+              lines: [
+                `Approved ${tg?.approved ?? 0}`,
+                `Pending ${tg?.pending ?? 0}`,
+                `Rejected ${tg?.rejected ?? 0}`,
+              ],
+            },
+            {
+              key: "liq",
+              title: liqPay?.label || "LIQ Premium subscription",
+              revenue: liqPay?.revenue_etb ?? 0,
+              lines: [
+                `Approved ${liqPay?.approved ?? 0}`,
+                `Pending ${liqPay?.pending ?? 0}`,
+                liqPay?.count_from
+                  ? `From ${new Date(liqPay.count_from).toLocaleString()}`
+                  : "Baseline not set",
+                liqPay?.error ? `Error: ${liqPay.error}` : null,
+              ].filter(Boolean) as string[],
+            },
+            {
+              key: "act",
+              title: liqAct?.label || "LIQ Academy activation",
+              revenue: 0,
+              lines: [
+                `${liqAct?.count ?? 0} activations`,
+                "0 ETB — not a payment",
+              ],
+            },
+          ].map((block) => (
+            <div key={block.key} className="card-liq space-y-2">
+              <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                {block.title}
+              </p>
+              <p className="font-display text-2xl font-semibold tabular-nums">
+                {block.key === "act" ? block.lines[0] : formatEtb(block.revenue)}
+              </p>
+              <ul className="space-y-0.5 text-xs text-[var(--tg-hint)]">
+                {block.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -721,7 +836,7 @@ function AnalyticsAdmin() {
       <div className="grid gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <BarChart
-            title="Approved proofs / day"
+            title="Approved proofs / day (combined)"
             days={byDay}
             field="approved"
             color="#15803d"
@@ -754,6 +869,22 @@ function AnalyticsAdmin() {
           <h4 className="font-semibold">Recent payment proofs</h4>
           <select
             className="input-liq ml-auto w-auto py-1 text-sm"
+            value={sourceFilter}
+            onChange={(e) =>
+              setSourceFilter(
+                e.target.value as
+                  | "all"
+                  | "telegram_group"
+                  | "liq_subscription"
+              )
+            }
+          >
+            <option value="all">All sources</option>
+            <option value="telegram_group">Telegram paid group</option>
+            <option value="liq_subscription">LIQ subscriptions</option>
+          </select>
+          <select
+            className="input-liq w-auto py-1 text-sm"
             value={statusFilter}
             onChange={(e) =>
               setStatusFilter(
@@ -768,11 +899,12 @@ function AnalyticsAdmin() {
           </select>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-[var(--tg-text)] text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                <th className="py-2 pr-3 font-medium">Source</th>
                 <th className="py-2 pr-3 font-medium">User</th>
-                <th className="py-2 pr-3 font-medium">Telegram ID</th>
+                <th className="py-2 pr-3 font-medium">Detail</th>
                 <th className="py-2 pr-3 font-medium">Status</th>
                 <th className="py-2 pr-3 font-medium">Submitted</th>
                 <th className="py-2 pr-3 font-medium">Reviewed</th>
@@ -783,7 +915,7 @@ function AnalyticsAdmin() {
               {filtered.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="py-6 text-center text-[var(--tg-hint)]"
                   >
                     No payment proofs yet.
@@ -792,12 +924,21 @@ function AnalyticsAdmin() {
               ) : (
                 filtered.map((row) => (
                   <tr
-                    key={row.id}
+                    key={`${row.source || "tg"}-${row.id}`}
                     className="border-b border-[var(--tg-code-border)]"
                   >
+                    <td className="py-2 pr-3 text-xs">
+                      {row.source_label ||
+                        (row.source === "liq_subscription"
+                          ? "LIQ subscription"
+                          : "Telegram group")}
+                    </td>
                     <td className="py-2 pr-3">{analyticsDisplayName(row)}</td>
-                    <td className="py-2 pr-3 font-mono text-xs">
-                      {row.telegram_user_id}
+                    <td className="py-2 pr-3 font-mono text-xs text-[var(--tg-hint)]">
+                      {row.plan_label ||
+                        (row.telegram_user_id != null
+                          ? String(row.telegram_user_id)
+                          : "—")}
                     </td>
                     <td className="py-2 pr-3 capitalize">{row.status}</td>
                     <td className="py-2 pr-3 text-xs text-[var(--tg-hint)]">
@@ -810,6 +951,59 @@ function AnalyticsAdmin() {
                       {row.status === "approved"
                         ? formatEtb(row.estimated_amount_etb)
                         : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card-liq space-y-3">
+        <h4 className="font-semibold">Recent Academy activations</h4>
+        <p className="text-xs text-[var(--tg-hint)]">
+          Membership grants only — never counted in revenue or Money.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[var(--tg-text)] text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+                <th className="py-2 pr-3 font-medium">Telegram</th>
+                <th className="py-2 pr-3 font-medium">Months</th>
+                <th className="py-2 pr-3 font-medium">Expires</th>
+                <th className="py-2 font-medium">Activated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activations.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-6 text-center text-[var(--tg-hint)]"
+                  >
+                    No activations yet.
+                  </td>
+                </tr>
+              ) : (
+                activations.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-[var(--tg-code-border)]"
+                  >
+                    <td className="py-2 pr-3">
+                      {row.telegram_username
+                        ? `@${row.telegram_username}`
+                        : row.telegram_user_id != null
+                          ? `ID ${row.telegram_user_id}`
+                          : "—"}
+                    </td>
+                    <td className="py-2 pr-3">{row.months}</td>
+                    <td className="py-2 pr-3 text-xs text-[var(--tg-hint)]">
+                      {formatWhen(row.granted_expires_at)}
+                    </td>
+                    <td className="py-2 text-xs text-[var(--tg-hint)]">
+                      {formatWhen(row.created_at)}
                     </td>
                   </tr>
                 ))
@@ -851,6 +1045,30 @@ function MoneyAdmin() {
     created_at: string;
   };
 
+  type IncomeSources = {
+    telegram_group: {
+      label: string;
+      approved_count: number;
+      payment_amount_etb: number;
+      income_etb: number;
+    };
+    liq_subscription: {
+      label: string;
+      configured: boolean;
+      count_from: string | null;
+      approved_count: number;
+      income_etb: number;
+      error: string | null;
+    };
+    liq_activation: {
+      label: string;
+      count: number;
+      income_etb: number;
+      note?: string;
+    };
+    combined_income_etb: number;
+  };
+
   const [loading, setLoading] = useState(true);
   const [busyLocal, setBusyLocal] = useState(false);
   const [error, setError] = useState("");
@@ -859,6 +1077,9 @@ function MoneyAdmin() {
   const [approvedCount, setApprovedCount] = useState(0);
   const [price, setPrice] = useState(0);
   const [summary, setSummary] = useState<MoneySummary | null>(null);
+  const [incomeSources, setIncomeSources] = useState<IncomeSources | null>(
+    null
+  );
   const [expenses, setExpenses] = useState<MoneyExpense[]>([]);
 
   const [kind, setKind] = useState<"company" | "individual">("company");
@@ -890,6 +1111,7 @@ function MoneyAdmin() {
       setExpenses(json.expenses || []);
       setApprovedCount(Number(json.approved_count) || 0);
       setPrice(Number(json.payment_amount_etb) || 0);
+      setIncomeSources(json.income_sources || null);
       setNote(json.note || "");
     } catch {
       setError("Could not load money");
@@ -959,12 +1181,16 @@ function MoneyAdmin() {
     return <p className="text-sm text-[var(--tg-hint)]">Loading money…</p>;
   }
 
+  const incomeDetail = incomeSources
+    ? `TG ${formatEtb(incomeSources.telegram_group.income_etb)} + LIQ ${formatEtb(incomeSources.liq_subscription.income_etb)}`
+    : `${approvedCount} approved · TG price ${formatEtb(price)}`;
+
   const flowSteps = summary
     ? [
         {
           label: "1. Money in",
           value: formatEtb(summary.income_etb),
-          detail: `${approvedCount} approved × ${formatEtb(price)}`,
+          detail: incomeDetail,
           tone: "border-emerald-700/40 bg-emerald-50 dark:bg-emerald-950/30",
         },
         {
@@ -1012,6 +1238,50 @@ function MoneyAdmin() {
           First-time setup: run{" "}
           <code className="font-mono">supabase/partner_money.sql</code> in
           Supabase SQL Editor, then refresh.
+        </div>
+      ) : null}
+
+      {incomeSources ? (
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="border border-[var(--tg-code-border)] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+              {incomeSources.telegram_group.label}
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold tabular-nums">
+              {formatEtb(incomeSources.telegram_group.income_etb)}
+            </p>
+            <p className="mt-1 text-xs text-[var(--tg-hint)]">
+              {incomeSources.telegram_group.approved_count} ×{" "}
+              {formatEtb(incomeSources.telegram_group.payment_amount_etb)}
+            </p>
+          </div>
+          <div className="border border-[var(--tg-code-border)] px-4 py-3">
+            <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+              {incomeSources.liq_subscription.label}
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold tabular-nums">
+              {formatEtb(incomeSources.liq_subscription.income_etb)}
+            </p>
+            <p className="mt-1 text-xs text-[var(--tg-hint)]">
+              {incomeSources.liq_subscription.approved_count} approved from
+              baseline
+              {incomeSources.liq_subscription.error
+                ? ` · ${incomeSources.liq_subscription.error}`
+                : ""}
+            </p>
+          </div>
+          <div className="border border-dashed border-[var(--tg-code-border)] px-4 py-3 opacity-80">
+            <p className="text-xs uppercase tracking-wide text-[var(--tg-hint)]">
+              {incomeSources.liq_activation.label}
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold tabular-nums">
+              {incomeSources.liq_activation.count} · 0 ETB
+            </p>
+            <p className="mt-1 text-xs text-[var(--tg-hint)]">
+              {incomeSources.liq_activation.note ||
+                "Not income — excluded from split"}
+            </p>
+          </div>
         </div>
       ) : null}
 

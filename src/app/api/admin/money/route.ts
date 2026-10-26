@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import { createAdminSupabase } from "@/lib/supabase/admin";
+import { loadLiqFinance } from "@/lib/liq-finance";
 import {
   PARTNERS,
   countApprovedPayments,
@@ -25,7 +26,7 @@ export async function GET() {
   try {
     const supabase = createAdminSupabase();
 
-    const [paymentsRes, settingsRes, expensesRes] = await Promise.all([
+    const [paymentsRes, settingsRes, expensesRes, liq] = await Promise.all([
       supabase
         .from("payment_requests")
         .select("status, telegram_user_id, username")
@@ -42,6 +43,7 @@ export async function GET() {
         .order("spent_at", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(500),
+      loadLiqFinance(),
     ]);
 
     if (expensesRes.error) {
@@ -56,10 +58,10 @@ export async function GET() {
     }
 
     const amountEtb = parseEtb(settingsRes.data?.payment_amount);
-    const { approved, incomeEtb } = countApprovedPayments(
-      paymentsRes.data || [],
-      amountEtb
-    );
+    const telegram = countApprovedPayments(paymentsRes.data || [], amountEtb);
+    const liqIncomeEtb = liq.revenue_etb;
+    const incomeEtb = telegram.incomeEtb + liqIncomeEtb;
+    const approved = telegram.approved + liq.approved_count;
 
     const expenses = (expensesRes.data || []).map((row) => ({
       id: String(row.id),
@@ -79,10 +81,33 @@ export async function GET() {
       partners: PARTNERS,
       payment_amount_etb: amountEtb,
       approved_count: approved,
+      income_sources: {
+        telegram_group: {
+          label: "Telegram paid group",
+          approved_count: telegram.approved,
+          payment_amount_etb: amountEtb,
+          income_etb: telegram.incomeEtb,
+        },
+        liq_subscription: {
+          label: "LIQ Premium subscription",
+          configured: liq.configured,
+          count_from: liq.count_from,
+          approved_count: liq.approved_count,
+          income_etb: liqIncomeEtb,
+          error: liq.error,
+        },
+        liq_activation: {
+          label: "LIQ Academy activation",
+          count: liq.activation_count,
+          income_etb: 0,
+          note: "Not money — excluded from partner split.",
+        },
+        combined_income_etb: incomeEtb,
+      },
       summary,
       expenses,
       note:
-        "Income from approved payments. Company costs come out first (shared). Then the rest splits 50/50 for Wada and Lemi. Personal expenses only reduce that person.",
+        "Income = Telegram paid-group approvals + LIQ Premium approved amounts (from the real 300 ETB baseline). Academy activations are not income. Company costs come out first (shared). Then the rest splits 50/50 for Wada and Lemi.",
     });
   } catch (e) {
     return NextResponse.json(
